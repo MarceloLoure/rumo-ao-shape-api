@@ -2,6 +2,7 @@ import { Controller, Post, Param, Body, Ip, BadRequestException } from '@nestjs/
 import { PrismaService } from '../prisma/prisma.service';
 import { AsaasService } from './asaas.service';
 import { PayCreditCardDto } from './dto/pay-credit-card.dto';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @Controller('payments')
 export class PaymentController {
@@ -11,6 +12,10 @@ export class PaymentController {
   ) {}
 
   @Post('invoice/:id/pay-credit-card')
+  @ApiTags('Payments')
+  @ApiOperation({ summary: 'Pagar uma fatura com cartão de crédito' })
+  @ApiResponse({ status: 200, description: 'Pagamento realizado com sucesso' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos.' })
   async payInvoiceWithCard(
     @Param('id') invoiceId: string,
     @Body() dto: PayCreditCardDto,
@@ -110,6 +115,9 @@ export class PaymentController {
   }
 
   @Post('invoice/:id/pay-saved-card')
+  @ApiOperation({ summary: 'Pagar uma fatura com cartão salvo' })
+  @ApiResponse({ status: 200, description: 'Pagamento realizado com sucesso' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos.' })
     async payWithSavedCard(
     @Param('id') invoiceId: string,
     @Body('cardId') cardId: string,

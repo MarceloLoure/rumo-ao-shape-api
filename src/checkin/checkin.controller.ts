@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Query } fro
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CheckInService } from './checkin.service';
 import { CreateCheckInDto } from './dto/create-checkin.dto';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @Controller('checkins')
 export class CheckInController {
@@ -9,6 +10,9 @@ export class CheckInController {
 
   @Post()
   @UseInterceptors(FileInterceptor('image'))
+  @ApiOperation({ summary: 'Registrar um check-in' })
+  @ApiResponse({ status: 201, description: 'Check-in registrado com sucesso' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos.' })
   async create(
     @Body() body: any, // Captura o objeto bruto do form-data
     @UploadedFile() file: Express.Multer.File,
@@ -26,6 +30,9 @@ export class CheckInController {
   }
 
   @Get('history')
+  @ApiOperation({ summary: 'Obter histórico de check-ins de um usuário em um desafio' })
+  @ApiResponse({ status: 200, description: 'Histórico de check-ins retornado com sucesso' })
+  @ApiResponse({ status: 400, description: 'Parâmetros inválidos.' })
   async getHistory(
     @Query('challengeId') challengeId: string,
     @Query('userId') userId: string,

@@ -1,0 +1,21 @@
+### Pagar a Invoice Pendente usando Cartão de Crédito (Simulação Sandbox)
+POST http://localhost:3000/payments/invoice/COLE_O_UUID_DA_SUA_INVOICE_PENDENTE_AQUI/pay-credit-card
+Content-Type: application/json
+
+{
+  "creditCard": {
+    "holderName": "MONSTRO DO SHAPE",
+    "number": "4012000000001", 
+    "expiryMonth": "12",
+    "expiryYear": "2030",
+    "ccv": "123"
+  },
+  "creditCardHolderInfo": {
+    "name": "Monstro do Shape",
+    "email": "monstro@shape.com",
+    "cpfCnpj": "00000000000", 
+    "postalCode": "01310100",
+    "addressNumber": "1500",
+    "phone": "11999999999"
+  }
+}

@@ -1,0 +1,13 @@
+import { Module } from '@nestjs/common';
+import { ChallengeService } from './challenge.service';
+import { ChallengeController } from './challenge.controller';
+import { PrismaModule } from 'src/prisma/prisma.module';
+import { CheckinModule } from 'src/checkin/checkin.module';
+import { PaymentModule } from 'src/payment/payment.module';
+
+@Module({
+  imports: [PrismaModule, CheckinModule, PaymentModule],
+  providers: [ChallengeService],
+  controllers: [ChallengeController]
+})
+export class ChallengeModule {}

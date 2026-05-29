@@ -1,0 +1,76 @@
+### Variáveis locais do arquivo
+@baseUrl = http://localhost:3000
+
+# @name firebaseLogin
+POST {{baseUrl}}/auth/firebase
+Content-Type: application/json
+
+{
+  "token": "teste_local"
+}
+
+### 1. Cadastro Manual (E-mail e Senha)
+# Cria um usuário nativo no sistema criptografando a senha com bcrypt
+POST {{baseUrl}}/auth/register/manual
+Content-Type: application/json
+
+{
+  "name": "Shape Monstro Manual",
+  "email": "monstro@shape.com",
+  "password": "SenhaForte123@Treino"
+}
+
+### 2. Tentar Cadastrar E-mail Duplicado (Deve retornar erro 409)
+# Testa a blindagem do banco impedindo e-mails iguais
+POST {{baseUrl}}/auth/register/manual
+Content-Type: application/json
+
+{
+  "name": "Outro Monstro",
+  "email": "monstro@shape.com",
+  "password": "OutraSenha123"
+}
+
+### 3. Login Manual com Sucesso (Retorna o JWT da nossa API)
+# Valida as credenciais comparando o hash do banco
+POST {{baseUrl}}/auth/login/manual
+Content-Type: application/json
+
+{
+  "email": "monstro@shape.com",
+  "password": "SenhaForte123@Treino"
+}
+
+### 4. Login Manual com Senha Errada (Deve falhar)
+POST {{baseUrl}}/auth/login/manual
+Content-Type: application/json
+
+{
+  "email": "monstro@shape.com",
+  "password": "SenhaErradaHulk"
+}
+
+### 5. Login Social - Novo Usuário (Google/Apple)
+# Simula um usuário logando pela primeira vez direto pelo Google no Flutter
+POST {{baseUrl}}/auth/login/social
+Content-Type: application/json
+
+{
+  "name": "Hulk Esmaga Google",
+  "email": "hulk.google@gmail.com",
+  "firebaseUid": "google_uid_123456789_abcdef",
+  "avatarUrl": "https://lh3.googleusercontent.com/a/avatar_do_hulk"
+}
+
+### 6. MÁGICA DA UNIFICAÇÃO: Login Social com E-mail Existente
+# Simula o usuário que se cadastrou no passo 1 (monstro@shape.com) clicando 
+# em "Entrar com Google" no Flutter. O sistema DEVE injetar o firebaseUid na conta existente.
+POST {{baseUrl}}/auth/login/social
+Content-Type: application/json
+
+{
+  "name": "Shape Monstro Manual",
+  "email": "monstro@shape.com",
+  "firebaseUid": "google_uid_vinculado_ao_manual_999",
+  "avatarUrl": "https://lh3.googleusercontent.com/a/avatar_vinculado"
+}

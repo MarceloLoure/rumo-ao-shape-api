@@ -1,0 +1,252 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PlanType {
+  FREE
+  PREMIUM
+}
+
+// 1. Usuários da Plataforma
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  name              String
+  cpf               String?        @unique
+  avatarUrl         String?
+  firebaseUid       String?   @unique // Atrelado ao login Google/Apple do Firebase
+  passwordHash      String?
+  fcmToken          String?
+  gatewayCustomerId String? // ID do cliente no Asaas/Stripe para saques/pagamentos
+  walletBalance     Decimal  @default(0.00) @db.Decimal(10, 2) // Saldo interno para resgatar prêmios
+  plan              PlanType @default(FREE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  challengesCreated Challenge[] // Desafios que este usuário gerencia (Admin)
+  participations    Participant[]
+  checkins          CheckIn[] // CORRIGIDO: Modificado de () para []
+  auditLogs         AuditLog[]
+
+  invoices          Invoice[]
+
+  creditCards UserCreditCard[]
+
+  @@index([firebaseUid])
+  @@index([fcmToken])
+  @@map("users")
+}
+
+// 2. Os Desafios criados por Administradores
+model Challenge {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  creatorId   String
+  creator     User    @relation(fields: [creatorId], references: [id])
+
+  fileId String? @unique
+  image  File?   @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  metaSemanal   Int // Qtd de treinos obrigatórios por semana (ex: 4)
+  taxaInscricao Decimal @db.Decimal(10, 2) // Vai direto pro criador
+  valorCaucao   Decimal @db.Decimal(10, 2) // Fica retido no cofre da plataforma
+
+  isFree Boolean @default(false)
+
+  startDate DateTime
+  endDate   DateTime
+  status    ChallengeStatus @default(PENDING) // PENDING, ACTIVE, FINISHED
+  createdAt DateTime        @default(now())
+
+  participants Participant[]
+  treasury     ChallengeTreasury?
+  checkins     CheckIn[] // CORRIGIDO: Modificado de () para []
+
+  invoices          Invoice[]
+
+  @@map("challenges")
+}
+
+enum ChallengeStatus {
+  PENDING
+  ACTIVE
+  FINISHED
+}
+
+// 3. Matrícula/Participação do Usuário no Desafio (Rastreia a Caução)
+model Participant {
+  id          String    @id @default(uuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  escrowBalance Decimal           @default(0.00) @db.Decimal(10, 2) // Dinheiro da caução travado nesta semana
+  status        ParticipantStatus @default(ACTIVE)
+  joinedAt      DateTime          @default(now())
+
+  @@unique([challengeId, userId]) // Impede o usuário de entrar duas vezes no mesmo grupo
+  @@map("participants")
+}
+
+enum ParticipantStatus {
+  ACTIVE
+  WINNER // Bateu a meta da semana/desafio
+  PENALIZED // Perdeu a caução na semana
+  ELIMINATED // Saiu do grupo por falta de saldo de caução
+  LEAVE // Saiu do grupo por vontade propria
+  PENDING_PAYMENT //Entrou no desafio, mas a fatura de entrada está aberta
+}
+
+// 4. Caixa do Desafio (O que o Administrador visualiza)
+model ChallengeTreasury {
+  id          String    @id @default(uuid())
+  challengeId String    @unique
+  challenge   Challenge @relation(fields: [challengeId], references: [id])
+
+  totalEscrowed  Decimal  @default(0.00) @db.Decimal(10, 2) // Total de cauções de quem tá ativo
+  collectedFines Decimal  @default(0.00) @db.Decimal(10, 2) // Caixa acumulado de multas para o prêmio
+  updatedAt      DateTime @updatedAt
+
+  @@map("challenge_treasuries")
+}
+
+// 5. Registro de Check-ins (Treinos)
+model CheckIn {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id])
+
+  image      File?
+  latitude   Float?
+  longitude  Float?
+  deviceUuid String? // Previne que usem o mesmo celular para validar 10 contas
+  source     CheckInSource @default(APP) // APP ou SMARTWATCH
+  status     CheckInStatus @default(VALID)
+  createdAt  DateTime      @default(now())
+
+  @@map("checkins")
+}
+
+model File {
+  id          String   @id @default(uuid())
+  url         String // URL pública do Firebase Storage
+  storagePath String // Caminho interno no balde (ex: "checkins/user_id/foto.jpg") para exclusão posterior
+  fileName    String // Nome original do arquivo
+  mimeType    String // ex: "image/jpeg"
+  sizeInBytes Int // Tamanho do arquivo
+  createdAt   DateTime @default(now())
+
+  // Configuração da relação 1-para-1 com o CheckIn
+  checkInId String?  @unique
+  checkIn   CheckIn? @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+
+  challenge Challenge?
+
+  @@map("files")
+}
+
+enum CheckInSource {
+  APP
+  SMARTWATCH
+}
+
+enum CheckInStatus {
+  VALID
+  SUSPICIOUS
+  INVALID
+}
+
+// 6. Logs de Segurança e Auditoria (Sua Blindagem Jurídica)
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String? // Quem realizou a ação (Admin ou Sistema)
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String // Ex: "RESOLVE_WEEKLY_CHALLENGE", "UPDATE_WALLET_BALANCE"
+  description String // Ex: "Usuário X multado em R$ 15 por falta de check-ins"
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model SubscriptionPlan {
+  id           String  @id @default(uuid())
+  name         String // Ex: "Premium Mensal", "Premium Shape do Ano (Anual)"
+  description  String? // Ex: "Acesso ilimitado a desafios e criação de salas"
+  price        Decimal @db.Decimal(10, 2) // Ex: 29.90
+  durationDays Int // Quantos dias dura o plano. Ex: 30 para mensal, 365 para anual
+
+  // Controle de promoções e exibição
+  isActive    Boolean @default(true) // Para você desativar um plano antigo sem apagar do histórico
+  isPromotion Boolean @default(false) // Se for true, o Flutter pode colocar um selo de "DESCONTO"
+  badgeText   String? // Ex: "Melhor Custo-Benefício", "Mais Vendido"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscription_plans")
+}
+
+enum InvoiceType {
+  CHALLENGE_ENTRY  // Entrada em um desafio (Inscrição + Caução)
+  WEEKLY_FINE      // Multa por falhar na meta da semana
+  PLAN_SUBSCRIPTION // Upgrade para plano Premium
+}
+
+enum InvoiceStatus {
+  PENDING   // Gerada, aguardando o usuário pagar
+  CONFIRMED // Paga (Confirmada pelo Asaas via Webhook)
+  OVERDUE   // Vencida
+  REFUNDED  // Estornada
+}
+
+model Invoice {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  
+  challengeId      String?       // Opcional, pois faturas de plano não têm desafio
+  challenge        Challenge?    @relation(fields: [challengeId], references: [id])
+
+  // Dados de Integração com o Asaas
+  gatewayInvoiceId String        @unique // ID da cobrança lá dentro do Asaas (pay_...)
+  pixCopyPaste     String?       @db.Text // Código Copia e Cola do Pix gerado pelo Asaas
+  pixQrCodeUrl     String?       @db.Text // Link da imagem do QR Code se precisar
+  
+  type             InvoiceType
+  status           InvoiceStatus @default(PENDING)
+  value            Decimal       @db.Decimal(10, 2)
+  
+  dueDate          DateTime      // Data de vencimento da cobrança
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model UserCreditCard {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  gatewayToken    String   @unique // O creditCardToken devolvido pelo Asaas
+  brand           String   // Bandeira (ex: VISA, MASTERCARD)
+  lastFourDigits  String   // Últimos 4 dígitos para o Flutter exibir em tela
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_credit_cards")
+}

@@ -1,0 +1,35 @@
+### Variáveis locais
+@baseUrl = http://localhost:3000
+@userId = a4a18ee3-340e-473a-ab1c-32a07a55edbf
+@challengeId = becde912-fa64-4261-80c6-0fd4edde94c9
+
+### Enviar um treino válido anexando a foto do shape
+POST {{baseUrl}}/checkins
+Content-Type: multipart/form-data; boundary=boundary_do_monstro
+
+--boundary_do_monstro
+Content-Disposition: form-data; name="userId"
+
+{{userId}}
+--boundary_do_monstro
+Content-Disposition: form-data; name="challengeId"
+
+{{challengeId}}
+--boundary_do_monstro
+Content-Disposition: form-data; name="latitude"
+
+-23.550520
+--boundary_do_monstro
+Content-Disposition: form-data; name="longitude"
+
+-46.633308
+--boundary_do_monstro
+Content-Disposition: form-data; name="deviceUuid"
+
+iphone_15_pro_max_hardware_id
+--boundary_do_monstro
+Content-Disposition: form-data; name="image"; filename="teste_shape.jpg"
+Content-Type: image/jpeg
+
+< ./teste_shape.jpg
+--boundary_do_monstro--

@@ -1,0 +1,33 @@
+### Configuração de Variáveis Locais
+@baseUrl = http://localhost:3000
+
+### 1. Cadastrar Plano Premium Mensal Padrão
+POST {{baseUrl}}/subscriptions/plans
+Content-Type: application/json
+
+{
+  "name": "Premium Mensal",
+  "description": "Acesso ilimitado a desafios, criação de salas e gráficos de evolução.",
+  "price": 29.90,
+  "durationDays": 30,
+  "isActive": true,
+  "isPromotion": false
+}
+
+### 2. Cadastrar Plano Promocional de Inverno (Com Badge e Desconto)
+POST {{baseUrl}}/subscriptions/plans
+Content-Type: application/json
+
+{
+  "name": "Combo Monstro Anual",
+  "description": "Pague um preço ridículo e garanta o shape o ano inteiro sem limites.",
+  "price": 199.90,
+  "durationDays": 365,
+  "isActive": true,
+  "isPromotion": true,
+  "badgeText": "MELHOR PREÇO (Economize 45%)"
+}
+
+### 3. Buscar Planos Ativos (O que o Flutter vai rodar)
+GET {{baseUrl}}/subscriptions/plans
+Content-Type: application/json

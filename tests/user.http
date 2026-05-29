@@ -1,0 +1,8 @@
+### Atualizar o Token do Firebase Messaging (FCM) do Usuário
+PATCH http://localhost:3000/users/fcm-token
+Content-Type: application/json
+
+{
+  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf",
+  "fcmToken": "fcm_token_gigante_enviado_pelo_flutter_1234567890_abcdef"
+}

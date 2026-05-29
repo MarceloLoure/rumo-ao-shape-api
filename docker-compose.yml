@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # 1. BANCO DE DADOS (PostgreSQL)
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: rumo_ao_shape_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: shape_admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: shape_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rumo-ao-shape-network
+
+volumes:
+  postgres_data:
+  # redis_data:
+
+networks:
+  rumo-ao-shape-network:
+    driver: bridge

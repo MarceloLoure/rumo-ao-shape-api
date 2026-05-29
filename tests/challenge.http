@@ -1,0 +1,71 @@
+### Criar Desafio Premium com Imagem de Capa Real
+POST http://localhost:3000/challenges
+Content-Type: multipart/form-data; boundary=boundary-monstro
+
+--boundary-monstro
+Content-Disposition: form-data; name="title"
+
+Desafio Projeto Verão 2026
+--boundary-monstro
+Content-Disposition: form-data; name="description"
+
+Foco total, 5 treinos por semana ou perde o Pix!
+--boundary-monstro
+Content-Disposition: form-data; name="creatorId"
+Content-Type: text/plain
+
+a4a18ee3-340e-473a-ab1c-32a07a55edbf
+--boundary-monstro
+Content-Disposition: form-data; name="metaSemanal"
+
+5
+--boundary-monstro
+Content-Disposition: form-data; name="taxaInscricao"
+
+15.00
+--boundary-monstro
+Content-Disposition: form-data; name="valorCaucao"
+
+50.00
+--boundary-monstro
+Content-Disposition: form-data; name="startDate"
+
+2026-06-01T00:00:00.000Z
+--boundary-monstro
+Content-Disposition: form-data; name="endDate"
+
+2026-06-30T23:59:59.000Z
+--boundary-monstro
+Content-Disposition: form-data; name="image"; filename="capa.jpg"
+Content-Type: image/jpeg
+
+< ./capa.jpg
+--boundary-monstro--
+
+### ENtrar no desafio criado
+POST http://localhost:3000/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
+Content-Type: application/json
+
+{
+  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf"
+}
+
+#### Listar Desafios (Ver se o que criamos aparece)
+GET http://localhost:3000/challenges
+Content-Type: application/json
+
+### Usuário desiste e sai do desafio (Perde a caução)
+POST http://localhost:3000/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/leave
+Content-Type: application/json
+
+{
+  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf"
+}
+
+### Usuário solicita entrada no desafio (Gera Pix Real no Asaas Sandbox)
+POST http://localhost:3000/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
+Content-Type: application/json
+
+{
+  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf"
+}

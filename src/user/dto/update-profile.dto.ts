@@ -6,7 +6,4 @@ export class UpdateProfileDto {
 
   @ApiPropertyOptional({ example: '12345678901', description: 'Apenas números' })
   cpf?: string;
-
-  @ApiPropertyOptional({ example: 'https://link-da-imagem.com/avatar.jpg' })
-  avatarUrl?: string;
 }

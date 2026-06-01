@@ -3,15 +3,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AsaasService } from 'src/payment/asaas.service';
+import { FirebaseStorageService } from 'src/checkin/firebase-storage.service';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly firebaseStorage: FirebaseStorageService,
     private readonly asaasService: AsaasService,
   ) {}
 
-  async updateProfile(userId: string, dto: UpdateProfileDto) {
+  async updateProfile(userId: string, dto: UpdateProfileDto, file?: Express.Multer.File) {
     // 1. Busca o usuário atual
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuário não encontrado.');
@@ -20,7 +22,31 @@ export class UserService {
 
     if (dto.name) updateData.name = dto.name;
 
-    if (dto.avatarUrl) updateData.avatarUrl = dto.avatarUrl;
+    if (file) {
+      // Cria um caminho organizado no bucket para avatars
+      const uniqueName = `${Date.now()}-${file.originalname}`;
+      const storagePath = `avatars/${userId}/${uniqueName}`;
+
+      // Envia para o Firebase Storage real (ou roda o mock se NODE_ENV=development)
+      const imageUrl = await this.firebaseStorage.uploadPhoto(file, storagePath);
+
+      // Salva os metadados da imagem de avatar na tabela File do Postgres igualzinho ao challenge
+      const savedFile = await this.prisma.file.create({
+        data: {
+          url: imageUrl,
+          storagePath: storagePath,
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          sizeInBytes: file.size,
+        },
+      });
+
+      // Se o seu model User salvar a string da URL:
+      updateData.avatarUrl = savedFile.url;
+      
+      // NOTA: Se o seu model User usar relação física (ex: fileId), basta descomentar a linha abaixo:
+      // updateData.fileId = savedFile.id;
+    }
 
     if (dto.cpf) {
       const cleanCpf = dto.cpf.replace(/\D/g, '');

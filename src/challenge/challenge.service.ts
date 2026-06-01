@@ -137,6 +137,68 @@ export class ChallengeService {
     });
   }
 
+  async findCreatedBy(userId: string) {
+    return this.prisma.challenge.findMany({
+      where: {
+        creatorId: userId,
+      },
+      include: {
+        image: true,
+        treasury: true,
+        // Conta quantos participantes reais estão inscritos
+        _count: {
+          select: { participants: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * 2. Busca os desafios onde o usuário está jogando ATIVAMENTE agora
+   */
+  async findActiveParticipations(userId: string) {
+    // Fazemos a query partindo da tabela Challenge, mas filtrando pela existência da relação
+    return this.prisma.challenge.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: userId,
+            status: 'ACTIVE', // Filtra apenas inscrições validadas pelo Asaas
+          },
+        },
+      },
+      include: {
+        image: true,
+        treasury: true,
+      },
+      orderBy: { startDate: 'asc' },
+    });
+  }
+
+  /**
+   * 3. Histórico completo de participações do usuário (Ativo, Concluído ou Desistiu)
+   * Ideal para renderizar aquela aba "Passados" ou histórico no Perfil
+   */
+  async findHistory(userId: string) {
+    return this.prisma.participant.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        challenge: {
+          include: {
+            image: true,
+            treasury: true,
+          },
+        },
+      },
+      orderBy: {
+        id: 'desc', // Traz as inscrições mais recentes primeiro
+      },
+    });
+  }
+
   // async joinChallenge(challengeId: string, userId: string) {
   //   return this.prisma.$transaction(async (tx) => {
   //     // 1. Busca o desafio, o cofre e os dados do criador em uma única tacada

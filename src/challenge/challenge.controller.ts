@@ -27,6 +27,24 @@ export class ChallengeController {
     return this.challengeService.findAll();
   }
 
+  @Get('creator/:userId')
+  @ApiOperation({ summary: 'Busca os desafios criados e gerenciados por um usuário específico' })
+  async getCreatedByUser(@Param('userId') userId: string) {
+    return this.challengeService.findCreatedBy(userId);
+  }
+
+  @Get('active-participations/:userId')
+  @ApiOperation({ summary: 'Busca os desafios onde o usuário está participando ativamente no momento' })
+  async getActiveParticipations(@Param('userId') userId: string) {
+    return this.challengeService.findActiveParticipations(userId);
+  }
+
+  @Get('history/:userId')
+  @ApiOperation({ summary: 'Busca o histórico completo de todas as inscrições (ativas ou não) do usuário' })
+  async getUserHistory(@Param('userId') userId: string) {
+    return this.challengeService.findHistory(userId);
+  }
+
   @Post(':id/join')
   @ApiOperation({ summary: 'Participar de um desafio' })
   @ApiResponse({ status: 200, description: 'Usuário entrou no desafio com sucesso' })

@@ -28,14 +28,13 @@ export class AuthService {
       let name: string;
       let picture: string | null = null;
 
-      // ─── BYPASS PARA TESTE LOCAL (SE SEM APP FLUTTER / SEM CERTIFICADO) ───
+      // ─── BYPASS PARA TESTE LOCAL ───
       if (process.env.NODE_ENV === 'development' && firebaseToken === 'teste_local') {
         uid = 'mock_firebase_uid_12345';
         email = 'monstro_do_treino@teste.com';
         name = 'Cavaleiro do Shape';
         picture = 'https://via.placeholder.com/150';
       } else {
-        // Fluxo Real (Será usado quando o Flutter enviar o Token verdadeiro)
         const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
         uid = decodedToken.uid;
         email = decodedToken.email ?? '';
@@ -47,7 +46,7 @@ export class AuthService {
         throw new UnauthorizedException('O e-mail é obrigatório no provedor social.');
       }
 
-      // 2. Busca o usuário no Postgres ou cria um novo se for o primeiro acesso
+      // 2. Busca o usuário no Postgres incluindo as participações
       let user = await this.prisma.user.findUnique({
         where: { firebaseUid: uid },
         include: this.userIncludeOptions,
@@ -78,8 +77,16 @@ export class AuthService {
           id: user.id,
           name: user.name,
           email: user.email,
-          avatarUrl: user.avatarUrl,
+          cpf: user.cpf, // 🚨 ADICIONADO: Retorna o CPF no login social
+          avatarUrl: user.avatarUrl, // 🚨 ADICIONADO: Garante o avatarUrl atualizado do banco
           walletBalance: user.walletBalance,
+          // 🚨 ADICIONADO: Mapeia os desafios ativos direto aqui também
+          activeChallenges: (user.participations || []).map((p: any) => ({
+            id: p.challenge.id,
+            name: p.challenge.name,
+            taxaInscricao: p.challenge.taxaInscricao,
+            valorCaucao: p.challenge.valorCaucao,
+          })),
         },
         backend_token: this.jwtService.sign(payload),
       };
@@ -93,7 +100,6 @@ export class AuthService {
   async registerManual(dto: RegisterManualDto) {
     const emailLower = dto.email.toLowerCase();
 
-    // Verifica se o e-mail já existe no sistema
     const userExists = await this.prisma.user.findUnique({ where: { email: emailLower } });
     if (userExists) {
       throw new ConflictException('Este e-mail já está cadastrado no Rumo ao Shape.');
@@ -103,7 +109,6 @@ export class AuthService {
       throw new BadRequestException('A senha é obrigatória para cadastro manual.');
     }
 
-    // Criptografa a senha antes de salvar no banco (10 salt rounds)
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     const user = await this.prisma.user.create({
@@ -120,7 +125,12 @@ export class AuthService {
 
   // 2. LOGIN MANUAL (Validação de E-mail e Senha)
   async loginManual(email: string, pass: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    // 🚨 CORRIGIDO: Adicionado o include das participações na busca do login manual
+    const user = await this.prisma.user.findUnique({ 
+      where: { email: email.toLowerCase() },
+      include: this.userIncludeOptions,
+    });
+
     if (!user || !user.passwordHash) {
       throw new BadRequestException('E-mail ou senha inválidos.');
     }
@@ -137,13 +147,12 @@ export class AuthService {
   async loginOrRegisterSocial(dto: LoginSocialDto) {
     const emailLower = dto.email.toLowerCase();
 
-    // Busca se já existe um usuário com esse mesmo e-mail (MÁGICA DA UNIFICAÇÃO)
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: emailLower }
+      where: { email: emailLower },
+      include: this.userIncludeOptions, // 🚨 ADICIONADO: Include aqui para garantir consistência
     });
 
     if (existingUser) {
-      // Se ele já existia mas não tinha o vinculo do FirebaseUid ainda, faz o vínculo automático
       if (!existingUser.firebaseUid) {
         const updatedUser = await this.prisma.user.update({
           where: { id: existingUser.id },
@@ -155,7 +164,6 @@ export class AuthService {
       return this.generateToken(existingUser);
     }
 
-    // Se o e-mail não existe na base, cria um usuário novinho atrelado direto ao FirebaseUid
     const newUser = await this.prisma.user.create({
       data: {
         email: emailLower,
@@ -178,10 +186,10 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        cpf: user.cpf, // 🚨 CORRIGIDO: Adicionado o campo CPF no payload centralizado
         plan: user.plan,
-        avatarUrl: user.avatarUrl,
+        avatarUrl: user.avatarUrl, // 🚨 CORRIGIDO: Força a entrega do link do avatar correto
         walletBalance: user.walletBalance,
-        // Faz a varredura do array mapeando direto os objetos dos desafios para o Flutter ler limpo
         activeChallenges: (user.participations || []).map((p: any) => ({
           id: p.challenge.id,
           name: p.challenge.name,

@@ -95,6 +95,15 @@ export class ChallengeService {
         },
       });
 
+      await tx.participant.create({
+        data: {
+          challengeId: challenge.id,
+          userId: dto.creatorId,
+          status: 'ACTIVE', // O dono do jogo entra direto, sem passar por PENDING_PAYMENT
+          escrowBalance: 0.00 // O criador não retém saldo de caução inicial com o gateway
+        }
+      });
+
       // 2. Inicializa o Caixa (Treasury) zerado para este desafio específico
       await tx.challengeTreasury.create({
         data: {

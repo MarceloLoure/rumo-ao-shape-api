@@ -1,5 +1,5 @@
 ### Criar Desafio Premium com Imagem de Capa Real
-POST http://localhost:3000/challenges
+POST https://rumo-ao-shape-api.onrender.com/challenges
 Content-Type: multipart/form-data; boundary=boundary-monstro
 
 --boundary-monstro
@@ -14,7 +14,7 @@ Foco total, 5 treinos por semana ou perde o Pix!
 Content-Disposition: form-data; name="creatorId"
 Content-Type: text/plain
 
-a4a18ee3-340e-473a-ab1c-32a07a55edbf
+7d2698ef-a55a-479f-867f-7d2de1e79d17
 --boundary-monstro
 Content-Disposition: form-data; name="metaSemanal"
 
@@ -22,7 +22,7 @@ Content-Disposition: form-data; name="metaSemanal"
 --boundary-monstro
 Content-Disposition: form-data; name="taxaInscricao"
 
-15.00
+0
 --boundary-monstro
 Content-Disposition: form-data; name="valorCaucao"
 
@@ -43,29 +43,29 @@ Content-Type: image/jpeg
 --boundary-monstro--
 
 ### ENtrar no desafio criado
-POST http://localhost:3000/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
+POST https://rumo-ao-shape-api.onrender.com/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
 Content-Type: application/json
 
 {
-  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf"
+  "userId": "7d2698ef-a55a-479f-867f-7d2de1e79d17"
 }
 
 #### Listar Desafios (Ver se o que criamos aparece)
-GET http://localhost:3000/challenges
+GET https://rumo-ao-shape-api.onrender.com/challenges
 Content-Type: application/json
 
 ### Usuário desiste e sai do desafio (Perde a caução)
-POST http://localhost:3000/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/leave
+POST https://rumo-ao-shape-api.onrender.com/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/leave
 Content-Type: application/json
 
 {
-  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf"
+  "userId": "7d2698ef-a55a-479f-867f-7d2de1e79d17"
 }
 
 ### Usuário solicita entrada no desafio (Gera Pix Real no Asaas Sandbox)
-POST http://localhost:3000/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
+POST https://rumo-ao-shape-api.onrender.com/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
 Content-Type: application/json
 
 {
-  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf"
+  "userId": "7d2698ef-a55a-479f-867f-7d2de1e79d17"
 }

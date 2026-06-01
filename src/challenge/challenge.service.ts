@@ -91,7 +91,7 @@ export class ChallengeService {
           fileId: fileId,
         },
         include: {
-          image: true, // Já retorna o objeto do arquivo populado no JSON
+          image: true,
         },
       });
 

@@ -32,7 +32,24 @@ export class AsaasService {
     }
   }
 
-  // 2. Gera uma cobrança Pix imediata
+  async updateCustomer(gatewayCustomerId: string, data: { name?: string; cpfCnpj?: string }) {
+    try {
+      const response = await this.client.post(`/customers/${gatewayCustomerId}`, {
+        name: data.name,
+        cpfCnpj: data.cpfCnpj,
+      });
+      
+      return response.data; // Retorna os dados atualizados vindos do Asaas
+    } catch (error: any) {
+      console.error('❌ Erro ao atualizar cliente no Asaas:', error.response?.data || error.message);
+      
+      // Captura o erro real do Asaas (ex: "CPF inválido", "Cliente não encontrado")
+      const asaasError = error.response?.data?.errors?.[0]?.description || 'Falha ao atualizar cadastro financeiro no gateway.';
+      throw new BadRequestException(asaasError);
+    }
+  }
+
+  // 3. Gera uma cobrança Pix imediata
   async createPixInvoice(customerId: string, value: number, description: string, externalReference: string) {
     try {
         // 1. Cria a fatura base no Asaas

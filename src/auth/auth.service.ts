@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { ParticipantStatus } from '@prisma/client';
 import * as admin from 'firebase-admin';
 import { LoginSocialDto } from './dto/login-social.dto';
 import { RegisterManualDto } from './dto/register-manual.dto';
@@ -12,6 +13,13 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  private readonly userIncludeOptions = {
+    participations: {
+      where: { status: ParticipantStatus.ACTIVE },
+      include: { challenge: true },
+    },
+  };
 
   async loginWithFirebase(firebaseToken: string) {
     try {
@@ -42,6 +50,7 @@ export class AuthService {
       // 2. Busca o usuário no Postgres ou cria um novo se for o primeiro acesso
       let user = await this.prisma.user.findUnique({
         where: { firebaseUid: uid },
+        include: this.userIncludeOptions,
       });
 
       if (!user) {
@@ -52,6 +61,7 @@ export class AuthService {
             name: name,
             avatarUrl: picture,
           },
+          include: this.userIncludeOptions,
         });
         console.log(`👤 Novo usuário criado no Postgres: ${user.name}`);
       }
@@ -102,6 +112,7 @@ export class AuthService {
         name: dto.name,
         passwordHash,
       },
+      include: this.userIncludeOptions,
     });
 
     return this.generateToken(user);
@@ -136,7 +147,8 @@ export class AuthService {
       if (!existingUser.firebaseUid) {
         const updatedUser = await this.prisma.user.update({
           where: { id: existingUser.id },
-          data: { firebaseUid: dto.firebaseUid, avatarUrl: dto.avatarUrl || existingUser.avatarUrl }
+          data: { firebaseUid: dto.firebaseUid, avatarUrl: dto.avatarUrl || existingUser.avatarUrl },
+          include: this.userIncludeOptions,
         });
         return this.generateToken(updatedUser);
       }
@@ -150,7 +162,8 @@ export class AuthService {
         name: dto.name,
         firebaseUid: dto.firebaseUid,
         avatarUrl: dto.avatarUrl,
-      }
+      },
+      include: this.userIncludeOptions,
     });
 
     return this.generateToken(newUser);
@@ -166,7 +179,15 @@ export class AuthService {
         name: user.name,
         email: user.email,
         plan: user.plan,
-        avatarUrl: user.avatarUrl
+        avatarUrl: user.avatarUrl,
+        walletBalance: user.walletBalance,
+        // Faz a varredura do array mapeando direto os objetos dos desafios para o Flutter ler limpo
+        activeChallenges: (user.participations || []).map((p: any) => ({
+          id: p.challenge.id,
+          name: p.challenge.name,
+          taxaInscricao: p.challenge.taxaInscricao,
+          valorCaucao: p.challenge.valorCaucao,
+        })),
       }
     };
   }

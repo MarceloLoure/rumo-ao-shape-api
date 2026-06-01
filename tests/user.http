@@ -1,3 +1,14 @@
+### Atualizar Perfil do Usuário (Adicionar CPF)
+PATCH https://rumo-ao-shape-api.onrender.com/users/COLE_O_ID_DO_USUARIO_AQUI/profile
+Content-Type: application/json
+
+{
+  "name": "Marcelo Lourenço Alterado",
+  "cpf": "12345678901",
+  "avatarUrl": "https://avatars.githubusercontent.com/u/123456"
+}
+
+
 ### Atualizar o Token do Firebase Messaging (FCM) do Usuário
 PATCH http://localhost:3000/users/fcm-token
 Content-Type: application/json

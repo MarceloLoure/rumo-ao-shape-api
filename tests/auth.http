@@ -56,8 +56,8 @@ POST {{baseUrl}}/auth/login/social
 Content-Type: application/json
 
 {
-  "name": "Hulk Esmaga Google",
-  "email": "hulk.google@gmail.com",
+  "name": "Marcelo",
+  "email": "pangzinn2@gmail.com",
   "firebaseUid": "google_uid_123456789_abcdef",
   "avatarUrl": "https://lh3.googleusercontent.com/a/avatar_do_hulk"
 }

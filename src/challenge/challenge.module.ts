@@ -4,10 +4,11 @@ import { ChallengeController } from './challenge.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { CheckinModule } from 'src/checkin/checkin.module';
 import { PaymentModule } from 'src/payment/payment.module';
+import { ChallengeCronService } from './challenge-cron.service';
 
 @Module({
   imports: [PrismaModule, CheckinModule, PaymentModule],
-  providers: [ChallengeService],
+  providers: [ChallengeService, ChallengeCronService],
   controllers: [ChallengeController]
 })
 export class ChallengeModule {}

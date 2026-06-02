@@ -88,6 +88,7 @@ model Participant {
   user        User      @relation(fields: [userId], references: [id])
 
   escrowBalance Decimal           @default(0.00) @db.Decimal(10, 2) // Dinheiro da caução travado nesta semana
+  finesPending  Decimal           @default(0.00) @db.Decimal(10, 2)
   status        ParticipantStatus @default(ACTIVE)
   joinedAt      DateTime          @default(now())
 

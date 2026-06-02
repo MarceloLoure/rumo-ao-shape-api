@@ -10,6 +10,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
     PrismaModule,
     PassportModule,
     JwtModule.register({
+      global: true,
       secret: process.env.JWT_SECRET || 'SHAPE_SECRET_KEY_SUPER_STRONG_123',
       signOptions: { expiresIn: '7d' },
     }),

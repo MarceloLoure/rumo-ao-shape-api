@@ -1,15 +1,15 @@
 import { Controller, Post, Body, Headers, UnauthorizedException, HttpCode, HttpStatus } from '@nestjs/common';
-import { ChallengeService } from '../challenge/challenge.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanType, ParticipantStatus, InvoiceType } from '@prisma/client';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('webhooks/asaas')
 export class WebhookController {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
+  @Public()
   @Post()
-  @HttpCode(HttpStatus.OK) // O Asaas exige retorno HTTP 200 para saber que recebemos com sucesso
+  @HttpCode(HttpStatus.OK)
   async handleAsaasWebhook(
     @Body() body: any,
     @Headers('asaas-access-token') webhookToken: string,
@@ -21,9 +21,9 @@ export class WebhookController {
 
     console.log(`🤖 [Webhook Asaas] Evento recebido: ${body.event} | Cobrança: ${body.payment?.id}`);
 
-    // 2. Nós só queremos processar se o status for PAYMENT_CONFIRMED (Pago) ou PAYMENT_RECEIVED
+    // 2. Processa apenas se o status for de pagamento bem-sucedido
     if (body.event === 'PAYMENT_CONFIRMED' || body.event === 'PAYMENT_RECEIVED') {
-      const localInvoiceId = body.payment?.externalReference; // Lembra do UUID que passamos?
+      const localInvoiceId = body.payment?.externalReference;
 
       if (!localInvoiceId) {
         console.warn('⚠️ Cobrança recebida sem externalReference (ignorado).');
@@ -32,71 +32,107 @@ export class WebhookController {
 
       // 3. Executa a conciliação bancária dentro de uma transação isolada
       await this.prisma.$transaction(async (tx) => {
-        // Busca a fatura local correspondente
         const invoice = await tx.invoice.findUnique({
           where: { id: localInvoiceId },
         });
 
-        // Se a fatura não existir ou já tiver sido confirmada, mata o processo
         if (!invoice || invoice.status === 'CONFIRMED') {
           return;
         }
 
-        // A) Atualiza o status da Fatura para CONFIRMED
+        // A) Atualiza o status da Fatura local para CONFIRMED de qualquer forma
         await tx.invoice.update({
           where: { id: localInvoiceId },
           data: { status: 'CONFIRMED' },
         });
 
-        // B) Se a fatura for de entrada em desafio (CHALLENGE_ENTRY)
-        if (invoice.type === 'CHALLENGE_ENTRY' && invoice.challengeId) {
+        // B) MÁGICA DOS 3 FLUXOS: Divide o comportamento baseado no tipo da Invoice
+        switch (invoice.type) {
           
-          // 1. Ativa o infeliz do participante no jogo!
-          await tx.participant.update({
-            where: {
-              challengeId_userId: {
-                challengeId: invoice.challengeId,
-                userId: invoice.userId,
-              },
-            },
-            data: { status: 'ACTIVE' },
-          });
-
-          // 2. Busca o desafio para saber as taxas e o criador
-          const challenge = await tx.challenge.findUnique({
-            where: { id: invoice.challengeId },
-            include: { treasury: true }
-          });
-
-          if (challenge) {
-            const taxa = Number(challenge.taxaInscricao);
-            const caucao = Number(challenge.valorCaucao);
-
-            // 3. Transfere a taxa de inscrição para a carteira interna do CRIADOR da sala
-            if (taxa > 0) {
-              await tx.user.update({
-                where: { id: challenge.creatorId },
-                data: { walletBalance: { increment: taxa } },
+          // ─── CENÁRIO 1: INSCRIÇÃO EM DESAFIO (Seu código original otimizado) ───
+          case InvoiceType.CHALLENGE_ENTRY: {
+            if (invoice.challengeId) {
+              await tx.participant.update({
+                where: {
+                  challengeId_userId: {
+                    challengeId: invoice.challengeId,
+                    userId: invoice.userId,
+                  },
+                },
+                data: { status: ParticipantStatus.ACTIVE }, // Usando o Enum real do Prisma
               });
-            }
 
-            // 4. Joga o valor da caução direto para o cofre do grupo (Treasury)
-            if (caucao > 0) {
-              await tx.challengeTreasury.upsert({
-                where: { challengeId: challenge.id },
-                update: { totalEscrowed: { increment: caucao } },
-                create: { challengeId: challenge.id, totalEscrowed: caucao },
+              const challenge = await tx.challenge.findUnique({
+                where: { id: invoice.challengeId },
               });
+
+              if (challenge) {
+                const taxa = Number(challenge.taxaInscricao);
+                const caucao = Number(challenge.valorCaucao);
+
+                if (taxa > 0) {
+                  await tx.user.update({
+                    where: { id: challenge.creatorId },
+                    data: { walletBalance: { increment: taxa } },
+                  });
+                }
+
+                if (caucao > 0) {
+                  await tx.challengeTreasury.upsert({
+                    where: { challengeId: challenge.id },
+                    update: { totalEscrowed: { increment: caucao } },
+                    create: { challengeId: challenge.id, totalEscrowed: caucao },
+                  });
+                }
+              }
             }
+            break;
           }
+
+          // ─── CENÁRIO 2: PAGAMENTO DE MULTA (Quem faltou no treino e quer voltar) ───
+          case InvoiceType.WEEKLY_FINE: {
+            if (invoice.challengeId) {
+              // 1. Reativa o status do cara para ACTIVE dentro do desafio
+              await tx.participant.update({
+                where: {
+                  challengeId_userId: {
+                    challengeId: invoice.challengeId,
+                    userId: invoice.userId,
+                  },
+                },
+                data: { status: ParticipantStatus.ACTIVE }, 
+              });
+
+              // 2. Joga o dinheiro da multa direto para o cofre de multas recolhidas (collectedFines)
+              await tx.challengeTreasury.upsert({
+                where: { challengeId: invoice.challengeId },
+                update: { collectedFines: { increment: Number(invoice.value) } },
+                create: { challengeId: invoice.challengeId, totalEscrowed: 0, collectedFines: Number(invoice.value) },
+              });
+            }
+            break;
+          }
+
+          // ─── CENÁRIO 3: COMPRA DE PLANO (Upgrade para PREMIUM) ───
+          case InvoiceType.PLAN_SUBSCRIPTION: {
+            // Atualiza o plano do infeliz diretamente para PREMIUM no banco local
+            await tx.user.update({
+              where: { id: invoice.userId },
+              data: { plan: PlanType.PREMIUM }, // Altera o enum de FREE para PREMIUM
+            });
+            break;
+          }
+
+          default:
+            console.warn(`⚠️ Tipo de fatura desconhecido ou não tratado: ${invoice.type}`);
         }
 
-        // C) Cria o Log de Auditoria definitivo de pagamento compensado
+        // C) Cria o Log de Auditoria definitivo unificado
         await tx.auditLog.create({
           data: {
             userId: invoice.userId,
-            action: 'PAYMENT_CONFIRMED',
-            description: `Pagamento de R$ ${Number(invoice.value).toFixed(2)} confirmado via Asaas. Inscrição ativada e saldos distribuídos com sucesso! 💸🏆`,
+            action: `PAYMENT_CONFIRMED_${invoice.type}`,
+            description: `Pagamento de R$ ${Number(invoice.value).toFixed(2)} confirmado para o tipo [${invoice.type}]. Conciliação e regras executadas com sucesso.`,
           },
         });
       });

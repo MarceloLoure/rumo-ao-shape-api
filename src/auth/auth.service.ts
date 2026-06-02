@@ -180,16 +180,21 @@ export class AuthService {
   // Helper para gerar o JWT interno da nossa API
   private generateToken(user: any) {
     const payload = { sub: user.id, email: user.email, plan: user.plan };
+    const totalFinesAccumulated = (user.participations || []).reduce(
+      (sum: number, p: any) => sum + Number(p.finesPending || 0),
+      0
+    );
     return {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        cpf: user.cpf, // 🚨 CORRIGIDO: Adicionado o campo CPF no payload centralizado
+        cpf: user.cpf, 
         plan: user.plan,
-        avatarUrl: user.avatarUrl, // 🚨 CORRIGIDO: Força a entrega do link do avatar correto
+        avatarUrl: user.avatarUrl,
         walletBalance: user.walletBalance,
+        totalFinesPending: totalFinesAccumulated,
         activeChallenges: (user.participations || []).map((p: any) => ({
           id: p.challenge.id,
           name: p.challenge.name,

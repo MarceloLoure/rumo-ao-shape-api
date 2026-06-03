@@ -1,5 +1,10 @@
-### Criar Desafio Premium com Imagem de Capa Real
-POST https://rumo-ao-shape-api.onrender.com/challenges
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MDUwNzU3MCwiZXhwIjoxNzgxMTEyMzcwfQ.O2G-049EIHlE1K0Y25KXTwe_qT3ZhAOeANfvQshIxac
+@challengeId = 26046f13-baa1-4489-b631-7b087287827e
+@targetUserId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
+
+### 1. Criar Desafio Premium com Imagem de Capa Real (Inscrição Automática do Criador)
+POST http://localhost:3000/challenges
+Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=boundary-monstro
 
 --boundary-monstro
@@ -12,9 +17,8 @@ Content-Disposition: form-data; name="description"
 Foco total, 5 treinos por semana ou perde o Pix!
 --boundary-monstro
 Content-Disposition: form-data; name="creatorId"
-Content-Type: text/plain
 
-7d2698ef-a55a-479f-867f-7d2de1e79d17
+{{targetUserId}}
 --boundary-monstro
 Content-Disposition: form-data; name="metaSemanal"
 
@@ -36,36 +40,90 @@ Content-Disposition: form-data; name="endDate"
 
 2026-06-30T23:59:59.000Z
 --boundary-monstro
+Content-Disposition: form-data; name="isFree"
+
+false
+--boundary-monstro
 Content-Disposition: form-data; name="image"; filename="capa.jpg"
 Content-Type: image/jpeg
 
 < ./capa.jpg
 --boundary-monstro--
 
-### ENtrar no desafio criado
-POST https://rumo-ao-shape-api.onrender.com/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
+
+### 2. Listar Todos os Desafios Globais (Aba Explorar)
+GET http://localhost:3000/challenges
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{
-  "userId": "7d2698ef-a55a-479f-867f-7d2de1e79d17"
-}
 
-#### Listar Desafios (Ver se o que criamos aparece)
-GET https://rumo-ao-shape-api.onrender.com/challenges
+### 3. Entrar em um Desafio (Gera Pix no Asaas Sandbox ou Ativa Direto se Gratuito)
+# O ID do usuário logado é extraído pelo @CurrentUser() direto do Bearer Token
+POST http://localhost:3000/challenges/{{challengeId}}/join
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
-### Usuário desiste e sai do desafio (Perde a caução)
-POST https://rumo-ao-shape-api.onrender.com/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/leave
+{}
+
+
+### 4. Sair/Abandonar um Desafio Ativo (Aplica retenção da Caução)
+# O ID do usuário logado é extraído pelo @CurrentUser() direto do Bearer Token
+POST http://localhost:3000/challenges/{{challengeId}}/leave
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{
-  "userId": "7d2698ef-a55a-479f-867f-7d2de1e79d17"
-}
+{}
 
-### Usuário solicita entrada no desafio (Gera Pix Real no Asaas Sandbox)
-POST https://rumo-ao-shape-api.onrender.com/challenges/8b56f53e-709a-4861-be6d-7b51f985bad9/join
+
+### 5. Buscar Desafios Criados e Gerenciados por um Usuário (Painel do Administrador)
+GET http://localhost:3000/challenges/creator/{{targetUserId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{
-  "userId": "7d2698ef-a55a-479f-867f-7d2de1e79d17"
-}
+
+### 6. Buscar Participações Ativas do Usuário (Cards da Home do Flutter)
+GET http://localhost:3000/challenges/active-participations/{{targetUserId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+### 7. Buscar Histórico Completo de Inscrições do Usuário (Aba Desafios Passados / Perfil)
+GET http://localhost:3000/challenges/history/{{targetUserId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### 8. Editar Desafio Pendente (Permite alterar tudo)
+PATCH http://localhost:3000/challenges/{{challengeId}}
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary-monstro
+
+--boundary-monstro
+Content-Disposition: form-data; name="title"
+
+Desafio Projeto Verão Atualizado 2027
+--boundary-monstro
+Content-Disposition: form-data; name="description"
+
+Nova descrição alterada localmente com sucesso!
+--boundary-monstro
+Content-Disposition: form-data; name="startDate"
+
+2026-06-10T00:00:00.000Z
+--boundary-monstro
+Content-Disposition: form-data; name="image"; filename="nova-capa.jpg"
+Content-Type: image/jpeg
+
+< ./capa.jpg
+--boundary-monstro--
+
+
+### 9. Forçar Erro ao tentar mudar textos de Desafio Ativo (Mude o ID para um desafio ACTIVE)
+PATCH http://localhost:3000/challenges/{{challengeId}}
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary-monstro
+
+--boundary-monstro
+Content-Disposition: form-data; name="title"
+
+Tentativa de burlar nome de sala ativa
+--boundary-monstro--

@@ -1,23 +1,38 @@
-import { Controller, Post, Get, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Patch, Get, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ChallengeService } from './challenge.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { UpdateChallengeDto } from './dto/update-challenge.dto';
 
 @Controller('challenges')
+@ApiBearerAuth()
 @ApiTags('Challenges')
 export class ChallengeController {
   constructor(private readonly challengeService: ChallengeService) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('image'))
-  @ApiOperation({ summary: 'Criar um novo desafio' })
-  @ApiResponse({ status: 201, description: 'Desafio criado com sucesso' })
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Cria um novo desafio (Com upload de capa)' })
   async create(
     @Body() dto: CreateChallengeDto,
-    @UploadedFile() image: Express.Multer.File
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.challengeService.create(dto, image);
+    return this.challengeService.create(dto, file);
+  }
+
+  @Patch(':id')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Edita dados de um desafio (Tranca textos/datas se já tiver começado)' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateChallengeDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.challengeService.update(id, dto, file);
   }
 
   @Get()
@@ -50,9 +65,9 @@ export class ChallengeController {
   @ApiResponse({ status: 200, description: 'Usuário entrou no desafio com sucesso' })
   join(
     @Param('id') challengeId: string,
-    @Body('userId') userId: string
+    @CurrentUser() user: any
   ) {
-    return this.challengeService.joinChallenge(challengeId, userId);
+    return this.challengeService.joinChallenge(challengeId, user.sub);
   }
 
   @Post(':id/leave')
@@ -60,8 +75,8 @@ export class ChallengeController {
   @ApiResponse({ status: 200, description: 'Usuário saiu do desafio com sucesso' })
   leave(
     @Param('id') challengeId: string,
-    @Body('userId') userId: string // O Flutter envia o userId no corpo da requisição
+    @CurrentUser() user: any
   ) {
-    return this.challengeService.leaveChallenge(challengeId, userId);
+    return this.challengeService.leaveChallenge(challengeId, user.sub);
   }
 }

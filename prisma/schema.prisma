@@ -59,8 +59,8 @@ model Challenge {
 
   isFree Boolean @default(false)
 
-  startDate DateTime
-  endDate   DateTime
+  startDate DateTime @db.Timestamptz
+  endDate   DateTime @db.Timestamptz
   status    ChallengeStatus @default(PENDING) // PENDING, ACTIVE, FINISHED
   createdAt DateTime        @default(now())
 

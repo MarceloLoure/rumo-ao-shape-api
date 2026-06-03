@@ -1,5 +1,5 @@
 @token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MDUwNzU3MCwiZXhwIjoxNzgxMTEyMzcwfQ.O2G-049EIHlE1K0Y25KXTwe_qT3ZhAOeANfvQshIxac
-@challengeId = 26046f13-baa1-4489-b631-7b087287827e
+@challengeId = 3c2acda0-3161-4be6-981b-d9b0dde6262b
 @targetUserId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
 
 ### 1. Criar Desafio Premium com Imagem de Capa Real (Inscrição Automática do Criador)
@@ -127,3 +127,23 @@ Content-Disposition: form-data; name="title"
 
 Tentativa de burlar nome de sala ativa
 --boundary-monstro--
+
+
+### 10. Deletar um Desafio Permanentemente
+DELETE http://localhost:3000/challenges/{{challengeId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### 11. Entrar em um Desafio por Código de Convite (Fácil e Rápido)
+POST http://localhost:3000/challenges/join-by-code
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "inviteCode": "6790E518"
+}
+
+### 12. Buscar Detalhes Completos de um Desafio por UUID (Timeline + Check-ins)
+GET http://localhost:3000/challenges/{{challengeId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json

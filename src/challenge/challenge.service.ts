@@ -4,6 +4,7 @@ import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
 import { FirebaseStorageService } from 'src/checkin/firebase-storage.service';
 import { AsaasService } from 'src/payment/asaas.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ChallengeService {
@@ -29,7 +30,16 @@ export class ChallengeService {
         throw new BadRequestException('Usuário criador não encontrado.');
       }
 
-      
+      let codigoFinal = dto.inviteCode 
+        ? dto.inviteCode.trim().toUpperCase() 
+        : crypto.randomBytes(4).toString('hex').toUpperCase();
+
+      if (dto.inviteCode) {
+        const codigoExiste = await this.prisma.challenge.findUnique({ where: { inviteCode: codigoFinal } });
+        if (codigoExiste) {
+          throw new BadRequestException('🔥 Este código de convite já está sendo usado por outro desafio. Escolha outro!');
+        }
+      }
 
       if (user.plan === 'FREE') {
         // Se ele tentar criar um desafio com grana sendo FREE, já barra
@@ -99,6 +109,7 @@ export class ChallengeService {
             startDate: start,
             endDate: end,
             fileId: fileId,
+            inviteCode: codigoFinal,
           },
           include: {
             image: true,
@@ -253,6 +264,83 @@ export class ChallengeService {
     });
   }
 
+  async delete(id: string) {
+    // 1. Busca o desafio trazendo as relações necessárias para validar as travas
+    const challenge = await this.prisma.challenge.findUnique({
+      where: { id },
+      include: {
+        image: true,
+        creator: true,
+      }
+    });
+
+    if (!challenge) {
+      throw new BadRequestException('Desafio não encontrado para exclusão.');
+    }
+
+    // 2. Conta quantos participantes reais estão inscritos EXCLUINDO o criador
+    const totalOutrosParticipantes = await this.prisma.participant.count({
+      where: {
+        challengeId: id,
+        NOT: {
+          userId: challenge.creatorId // Compara string com string, sem usar o fields.creatorId do Prisma
+        }
+      }
+    });
+
+    // 3. 🚨 APLICAÇÃO DA REGRA DE NEGÓCIO SEM COMPLICAÇÃO
+    if (challenge.creator.plan === 'PREMIUM' && totalOutrosParticipantes > 0) {
+      throw new BadRequestException(
+        '🚨 Não é permitido deletar um desafio Premium que já possui outros participantes inscritos ou com ordens de pagamento.'
+      );
+    }
+
+    // 4. Executa a deleção em lote dentro de uma transação ACID estável
+    await this.prisma.$transaction(async (tx) => {
+      // A) Apaga o caixa (Treasury) vinculado
+      await tx.challengeTreasury.deleteMany({ where: { challengeId: id } });
+
+      // B) Apaga todas as matrículas de participantes deste desafio
+      await tx.participant.deleteMany({ where: { challengeId: id } });
+
+      // C) Apaga as referências de faturas locais (Invoices) se houverem
+      await tx.invoice.deleteMany({ where: { challengeId: id } });
+
+      // D) Apaga o desafio físico da tabela
+      await tx.challenge.delete({ where: { id } });
+
+      // E) Se tinha imagem de capa, apaga os metadados do banco
+      if (challenge.fileId) {
+        await tx.file.delete({ where: { id: challenge.fileId } });
+      }
+
+      // F) Registra a auditoria do sistema
+      await tx.auditLog.create({
+        data: {
+          userId: challenge.creatorId,
+          action: 'DELETE_CHALLENGE',
+          description: `Desafio "${challenge.title}" foi deletado permanentemente pelo criador.`,
+        },
+      });
+    });
+
+    // 5. 🧹 LIMPEZA DO BUCKET (Agora o TypeScript sabe exatamente o que é o challenge.image)
+    if (challenge.image && challenge.image.storagePath) {
+      try {
+        const admin = require('firebase-admin');
+        const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'rumo-ao-shape';
+        await admin.storage().bucket(bucketName).file(challenge.image.storagePath).delete();
+      } catch (storageError: any) {
+        console.warn('⚠️ Imagem de capa não encontrada no Firebase Storage para exclusão:', storageError.message);
+      }
+    }
+
+    return {
+      success: true,
+      message: `O desafio "${challenge.title}" foi removido com sucesso de forma permanente.`,
+    };
+  }
+
   async findAll() {
     return this.prisma.challenge.findMany({
       include: {
@@ -271,6 +359,57 @@ export class ChallengeService {
         createdAt: 'desc' // Mostra os mais recentes primeiro
       }
     });
+  }
+
+  async findById(id: string) {
+    const challenge = await this.prisma.challenge.findUnique({
+      where: { id },
+      include: {
+        image: true,       // Traz os dados da foto de capa (tabela File)
+        treasury: true,    // Traz o cofre (collectedFines, totalEscrowed)
+        creator: {         // Traz dados básicos do criador
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          }
+        },
+        participants: {    // Lista quem tá no jogo e o status de cada um
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true,
+              }
+            }
+          },
+          orderBy: {
+            joinedAt: 'desc'
+          }
+        },
+        checkins: {        // 🏋️‍♂️ Traz o histórico de treinos validados do grupo
+          include: {
+            user: {        // Identifica quem fez o check-in
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true,
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc' // Mostra os treinos mais recentes no topo da timeline
+          }
+        }
+      }
+    });
+
+    if (!challenge) {
+      throw new BadRequestException('❌ Desafio não encontrado.');
+    }
+
+    return challenge;
   }
 
   async findCreatedBy(userId: string) {
@@ -486,6 +625,22 @@ export class ChallengeService {
         }
       };
     });
+  }
+
+  async joinByCode(inviteCode: string, userId: string) {
+    const codigoHigienizado = inviteCode.trim().toUpperCase();
+
+    // 1. Busca o desafio pelo código de convite
+    const challenge = await this.prisma.challenge.findUnique({
+      where: { inviteCode: codigoHigienizado }
+    });
+
+    if (!challenge) {
+      throw new BadRequestException('❌ Código de convite inválido ou desafio não encontrado.');
+    }
+
+    // 2. Reutiliza 100% da inteligência e travas financeiras do método joinChallenge original!
+    return this.joinChallenge(challenge.id, userId);
   }
 
   async leaveChallenge(challengeId: string, userId: string) {

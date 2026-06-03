@@ -1,10 +1,11 @@
-import { Controller, Post, Patch, Get, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Patch, Delete, Get, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ChallengeService } from './challenge.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { ApiTags, ApiConsumes, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
+import { JoinByCodeDto } from './dto/join-by-code.dto';
 
 @Controller('challenges')
 @ApiBearerAuth()
@@ -35,11 +36,25 @@ export class ChallengeController {
     return this.challengeService.update(id, dto, file);
   }
 
+  @Delete(':id')
+  @ApiOperation({ summary: 'Deleta um desafio permanentemente (Aplica travas para planos Premium)' })
+  @ApiResponse({ status: 200, description: 'Desafio removido com sucesso' })
+  async delete(@Param('id') id: string) {
+    return this.challengeService.delete(id);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar todos os desafios' })
   @ApiResponse({ status: 200, description: 'Lista de desafios retornada com sucesso' })
   async findAll() {
     return this.challengeService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Busca os detalhes completos e a timeline de check-ins de um desafio específico por UUID' })
+  @ApiResponse({ status: 200, description: 'Dados estruturados do desafio retornados com sucesso' })
+  async findById(@Param('id') id: string) {
+    return this.challengeService.findById(id);
   }
 
   @Get('creator/:userId')
@@ -68,6 +83,17 @@ export class ChallengeController {
     @CurrentUser() user: any
   ) {
     return this.challengeService.joinChallenge(challengeId, user.sub);
+  }
+
+  @Post('join-by-code')
+  @ApiOperation({ summary: 'Entrar em um desafio utilizando um código de convite rápido' })
+  @ApiResponse({ status: 200, description: 'Inscrição processada via código de convite' })
+  async joinByCode(
+    @Body() dto: JoinByCodeDto,
+    @CurrentUser() user: any
+  ) {
+    const userId = user?.sub || user?.id;
+    return this.challengeService.joinByCode(dto.inviteCode, userId);
   }
 
   @Post(':id/leave')

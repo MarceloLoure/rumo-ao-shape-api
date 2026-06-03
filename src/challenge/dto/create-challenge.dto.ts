@@ -45,4 +45,9 @@ export class CreateChallengeDto {
 
   @ApiProperty({ type: 'string', format: 'binary', description: 'Imagem de capa do desafio' })
   image?: any;
+
+  @ApiPropertyOptional({ example: 'VERAO2026', description: 'Código de convite personalizado (Opcional)' })
+  @IsOptional()
+  @IsString()
+  inviteCode?: string;
 }

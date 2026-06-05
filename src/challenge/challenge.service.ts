@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
@@ -16,6 +16,25 @@ export class ChallengeService {
 
   async create(dto: CreateChallengeDto, file?: Express.Multer.File) {
     try {
+
+      const normalizedTitle = dto.title.trim();
+
+      const existingChallenge = await this.prisma.challenge.findFirst({
+        where: {
+          title: {
+            equals: normalizedTitle,
+            mode: 'insensitive',
+          },
+          status: {
+            in: ['PENDING', 'ACTIVE'],
+          },
+        },
+      });
+
+      if (existingChallenge) {        // Retorna HTTP 409 Conflict para o Flutter tratar de forma amigável na tela
+        throw new ConflictException(`Já existe um desafio ativo com o nome "${normalizedTitle}". Escolha outro nome, monstro!`);
+      }
+
       const taxaInscricao = Number(dto.taxaInscricao);
       const valorCaucao = Number(dto.valorCaucao);
       const metaSemanal = parseInt(dto.metaSemanal as any, 10);
@@ -265,12 +284,13 @@ export class ChallengeService {
   }
 
   async delete(id: string) {
-    // 1. Busca o desafio trazendo as relações necessárias para validar as travas
+    // 1. Busca o desafio trazendo as relações necessárias para validar as travas financeiras
     const challenge = await this.prisma.challenge.findUnique({
       where: { id },
       include: {
         image: true,
         creator: true,
+        treasury: true, // 🧠 Fundamental para checar o saldo e movimentações físicas de dinheiro
       }
     });
 
@@ -278,21 +298,54 @@ export class ChallengeService {
       throw new BadRequestException('Desafio não encontrado para exclusão.');
     }
 
-    // 2. Conta quantos participantes reais estão inscritos EXCLUINDO o criador
-    const totalOutrosParticipantes = await this.prisma.participant.count({
+    // 2. Conta quantas faturas (Invoices) existem vinculadas a este desafio que NÃO estão falhadas/canceladas
+    // Se houver qualquer ordem de pagamento gerada (PENDING ou PAID), o criador não pode simplesmente sumir com o desafio.
+    const totalOrdensPagamentoAtivas = await this.prisma.invoice.count({
       where: {
         challengeId: id,
-        NOT: {
-          userId: challenge.creatorId // Compara string com string, sem usar o fields.creatorId do Prisma
-        }
-      }
+        status: {
+          in: ['PENDING', 'CONFIRMED'], // Bloqueia se tiver boleto/pix emitido aguardando ou se já foi pago
+        },
+      },
     });
 
-    // 3. 🚨 APLICAÇÃO DA REGRA DE NEGÓCIO SEM COMPLICAÇÃO
-    if (challenge.creator.plan === 'PREMIUM' && totalOutrosParticipantes > 0) {
+    // 3. 🚨 NOVA APLICAÇÃO DAS REGRAS DE NEGÓCIO FINANCEIRAS
+    
+    // Trava A: Se houver qualquer ordem de pagamento ativa ou concluída no sistema
+    if (totalOrdensPagamentoAtivas > 0) {
       throw new BadRequestException(
-        '🚨 Não é permitido deletar um desafio Premium que já possui outros participantes inscritos ou com ordens de pagamento.'
+        '🚨 Não é permitido deletar este desafio porque ele já possui ordens de pagamento ativas ou participantes que realizaram o pagamento.'
       );
+    }
+
+    // Trava B: Checagem profunda na tesouraria (Treasury)
+    // Se o desafio movimentou R$ 1 que seja de caução (totalEscrowed) ou aplicou multas (collectedFines), bloqueia!
+    if (challenge.treasury) {
+      const dinheiroEmCustodia = Number(challenge.treasury.totalEscrowed) || 0;
+      const multasColetadas = Number(challenge.treasury.collectedFines) || 0;
+
+      if (dinheiroEmCustodia > 0 || multasColetadas > 0) {
+        throw new BadRequestException(
+          '🚨 Bloqueio Financeiro: Este desafio possui movimentações de caixa (valores em garantia ou multas aplicadas) e não pode ser excluído.'
+        );
+      }
+    }
+
+    // Trava C: Se for um desafio FREE, mas já tiver OUTROS usuários engajados participando
+    // (Evita que o criador delete um desafio free que a galera já está participando e se esforçando)
+    if (challenge.isFree) {
+      const totalOutrosParticipantes = await this.prisma.participant.count({
+        where: {
+          challengeId: id,
+          NOT: { userId: challenge.creatorId }
+        }
+      });
+
+      if (totalOutrosParticipantes > 0) {
+        throw new BadRequestException(
+          '🚨 Não é permitido deletar um desafio gratuito que já possui outros participantes engajados.'
+        );
+      }
     }
 
     // 4. Executa a deleção em lote dentro de uma transação ACID estável
@@ -303,18 +356,21 @@ export class ChallengeService {
       // B) Apaga todas as matrículas de participantes deste desafio
       await tx.participant.deleteMany({ where: { challengeId: id } });
 
-      // C) Apaga as referências de faturas locais (Invoices) se houverem
+      // C) Apaga as faturas locais (Invoices) - se caiu aqui, só existem faturas com status 'CANCELED' ou 'FAILED'
       await tx.invoice.deleteMany({ where: { challengeId: id } });
 
-      // D) Apaga o desafio físico da tabela
+      // D) Apaga as referências de check-ins se houverem (para não dar erro de chave estrangeira)
+      await tx.checkIn.deleteMany({ where: { challengeId: id } });
+
+      // E) Apaga o desafio físico da tabela
       await tx.challenge.delete({ where: { id } });
 
-      // E) Se tinha imagem de capa, apaga os metadados do banco
+      // F) Se tinha imagem de capa, apaga os metadados do banco
       if (challenge.fileId) {
         await tx.file.delete({ where: { id: challenge.fileId } });
       }
 
-      // F) Registra a auditoria do sistema
+      // G) Registra a auditoria do sistema
       await tx.auditLog.create({
         data: {
           userId: challenge.creatorId,
@@ -324,11 +380,11 @@ export class ChallengeService {
       });
     });
 
-    // 5. 🧹 LIMPEZA DO BUCKET (Agora o TypeScript sabe exatamente o que é o challenge.image)
+    // 5. 🧹 LIMPEZA DO BUCKET (Mantém o Firebase Storage limpo)
     if (challenge.image && challenge.image.storagePath) {
       try {
         const admin = require('firebase-admin');
-        const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'rumo-ao-shape';
+        const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'rumo-ao-shape.firebasestorage.app';
         await admin.storage().bucket(bucketName).file(challenge.image.storagePath).delete();
       } catch (storageError: any) {
         console.warn('⚠️ Imagem de capa não encontrada no Firebase Storage para exclusão:', storageError.message);

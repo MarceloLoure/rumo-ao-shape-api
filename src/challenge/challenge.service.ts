@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
-import { FirebaseStorageService } from 'src/checkin/firebase-storage.service';
+import { FirebaseStorageService } from 'src/storage/firebase-storage.service';
 import { AsaasService } from 'src/payment/asaas.service';
 import * as crypto from 'crypto';
 
@@ -70,7 +70,7 @@ export class ChallengeService {
         const storagePath = `challenges/${dto.creatorId}/${uniqueName}`;
 
         // Envia para o Firebase Storage real (ou roda o mock se NODE_ENV=development)
-        const imageUrl = await this.firebaseStorage.uploadPhoto(file, storagePath);
+        const imageUrl = await this.firebaseStorage.uploadPhoto(file, 'challenges', storagePath);
 
         // Salva os metadados da imagem de capa na tabela File do Postgres
         const savedFile = await this.prisma.file.create({
@@ -214,7 +214,7 @@ export class ChallengeService {
       // B) Faz o upload do novo arquivo físico
       const uniqueName = `${Date.now()}-${file.originalname}`;
       const storagePath = `challenges/${challenge.creatorId}/${uniqueName}`;
-      const imageUrl = await this.firebaseStorage.uploadPhoto(file, storagePath);
+      const imageUrl = await this.firebaseStorage.uploadPhoto(file, 'challenges', storagePath);
 
       // C) Upsert dos metadados na tabela File (conecta na relação ou cria uma nova)
       if (challenge.fileId) {

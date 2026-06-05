@@ -18,6 +18,8 @@ export class AsaasService {
 
   // 1. Cria ou busca o cliente dentro do ecossistema do Asaas
   async createCustomer(name: string, email: string, cpf: string): Promise<string> {
+
+    console.log(name, email, cpf);
     try {
       const response = await this.client.post('/customers', {
         name,

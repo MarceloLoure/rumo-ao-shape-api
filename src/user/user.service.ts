@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AsaasService } from 'src/payment/asaas.service';
-import { FirebaseStorageService } from 'src/checkin/firebase-storage.service';
+import { FirebaseStorageService } from 'src/storage/firebase-storage.service';
 
 @Injectable()
 export class UserService {
@@ -28,7 +28,7 @@ export class UserService {
       const storagePath = `avatars/${userId}/${uniqueName}`;
 
       // Envia para o Firebase Storage real (ou roda o mock se NODE_ENV=development)
-      const imageUrl = await this.firebaseStorage.uploadPhoto(file, storagePath);
+      const imageUrl = await this.firebaseStorage.uploadPhoto(file, 'avatars', storagePath);
 
       // Salva os metadados da imagem de avatar na tabela File do Postgres igualzinho ao challenge
       const savedFile = await this.prisma.file.create({

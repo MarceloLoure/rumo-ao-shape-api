@@ -11,9 +11,10 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { PaymentModule } from './payment/payment.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(),AuthModule, PrismaModule, ChallengeModule, UserModule, CheckinModule, SubscriptionModule, PaymentModule],
+  imports: [ScheduleModule.forRoot(),AuthModule, PrismaModule, StorageModule, ChallengeModule, UserModule, CheckinModule, SubscriptionModule, PaymentModule],
   controllers: [AppController],
   providers: [
     {

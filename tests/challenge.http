@@ -1,5 +1,5 @@
 @token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MDUwNzU3MCwiZXhwIjoxNzgxMTEyMzcwfQ.O2G-049EIHlE1K0Y25KXTwe_qT3ZhAOeANfvQshIxac
-@challengeId = 3c2acda0-3161-4be6-981b-d9b0dde6262b
+@challengeId = aa4fdb6d-3d9c-4a4a-b365-9c10a9a4aaee
 @targetUserId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
 
 ### 1. Criar Desafio Premium com Imagem de Capa Real (Inscrição Automática do Criador)

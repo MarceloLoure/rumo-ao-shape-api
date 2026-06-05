@@ -2,7 +2,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCheckInDto } from './dto/create-checkin.dto';
-import { FirebaseStorageService } from './firebase-storage.service';
+import { FirebaseStorageService } from '../storage/firebase-storage.service';
 
 @Injectable()
 export class CheckInService {
@@ -44,7 +44,7 @@ export class CheckInService {
     }
 
     // 3. Executa o Upload para o Storage e captura a URL pública
-    const imageUrl = await this.storageService.uploadPhoto(file, dto.userId);
+    const imageUrl = await this.storageService.uploadPhoto(file, 'checkins', dto.userId);
 
     const storagePath = `checkins/${dto.userId}/${file.originalname}`;
 

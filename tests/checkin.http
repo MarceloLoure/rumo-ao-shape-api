@@ -1,10 +1,14 @@
 ### Variáveis locais
 @baseUrl = http://localhost:3000
-@userId = a4a18ee3-340e-473a-ab1c-32a07a55edbf
-@challengeId = becde912-fa64-4261-80c6-0fd4edde94c9
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MDY2NTYwOCwiZXhwIjoxNzgxMjcwNDA4fQ.9voHx2bZAKsaA1qTUbGSWKyMmZvrYVWVw0ZaKtaC-ko
+
+@userId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
+@challengeId = aa4fdb6d-3d9c-4a4a-b365-9c10a9a4aaee
 
 ### Enviar um treino válido anexando a foto do shape
 POST {{baseUrl}}/checkins
+Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=boundary_do_monstro
 
 --boundary_do_monstro
@@ -31,5 +35,5 @@ iphone_15_pro_max_hardware_id
 Content-Disposition: form-data; name="image"; filename="teste_shape.jpg"
 Content-Type: image/jpeg
 
-< ./teste_shape.jpg
+< ./capa.jpg
 --boundary_do_monstro--

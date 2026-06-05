@@ -14,6 +14,7 @@ export const initializeFirebaseAdmin = () => {
     try {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccountPath),
+        storageBucket: bucketName,
       });
       console.log('🔥 Firebase Admin SDK inicializado com as credenciais reais.');
     } catch (error) {

@@ -1,19 +1,43 @@
-### Atualizar Perfil do Usuário (Adicionar CPF)
-PATCH https://rumo-ao-shape-api.onrender.com/users/COLE_O_ID_DO_USUARIO_AQUI/profile
+### Variáveis Locais de Ambiente
+# Altere para apontar para a produção se quiser: https://rumo-ao-shape-api.onrender.com
+@baseUrl = http://localhost:3000
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZTQ5MGMyMC04Mzc2LTQ5NDYtOWE1NS03OTU5OGM1Njg0NjEiLCJlbWFpbCI6Im1vbnN0cm9Ac2hhcGUuY29tIiwicGxhbiI6IkZSRUUiLCJpYXQiOjE3ODA2NzYyOTcsImV4cCI6MTc4MTI4MTA5N30.axzOy0NSqT4IiklcR8mkWvUi3YBrthgWqxtGCiR8dlU
+
+@userId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
+
+
+### 1. Atualizar Perfil do Usuário (Nome, CPF e Foto de Avatar)
+# 🚨 Como aceita arquivo, mudamos para multipart/form-data e incluímos o Bearer Token
+PATCH {{baseUrl}}/users/{{userId}}/profile
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary_update_perfil
+
+--boundary_update_perfil
+Content-Disposition: form-data; name="name"
+
+Marcelo Lourenço Alterado
+--boundary_update_perfil
+Content-Disposition: form-data; name="cpf"
+
+12345678901
+--boundary_update_perfil
+# 🧠 Campo opcional: se quiser testar alterando a foto do avatar, descomente as linhas abaixo
+# indicando o caminho de uma imagem real na sua máquina (ex: ./capa.jpg)
+# Content-Disposition: form-data; name="image"; filename="meu_avatar.jpg"
+# Content-Type: image/jpeg
+#
+# < ./capa.jpg
+--boundary_update_perfil--
+
+
+### 2. Atualizar o Token do Firebase Messaging (FCM) do Usuário
+# 🚨 Adicionado o Bearer token para segurança da rota
+PATCH {{baseUrl}}/users/fcm-token
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "name": "Marcelo Lourenço Alterado",
-  "cpf": "12345678901",
-  "avatarUrl": "https://avatars.githubusercontent.com/u/123456"
-}
-
-
-### Atualizar o Token do Firebase Messaging (FCM) do Usuário
-PATCH http://localhost:3000/users/fcm-token
-Content-Type: application/json
-
-{
-  "userId": "a4a18ee3-340e-473a-ab1c-32a07a55edbf",
+  "userId": "{{userId}}",
   "fcmToken": "fcm_token_gigante_enviado_pelo_flutter_1234567890_abcdef"
 }

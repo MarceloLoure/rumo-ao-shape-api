@@ -438,7 +438,7 @@ export class ChallengeService {
                 name: true,
                 avatarUrl: true,
               }
-            }
+            },
           },
           orderBy: {
             joinedAt: 'desc'
@@ -452,7 +452,8 @@ export class ChallengeService {
                 name: true,
                 avatarUrl: true,
               }
-            }
+            },
+            image: true,
           },
           orderBy: {
             createdAt: 'desc' // Mostra os treinos mais recentes no topo da timeline

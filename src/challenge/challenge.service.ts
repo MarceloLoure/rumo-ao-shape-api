@@ -776,4 +776,47 @@ export class ChallengeService {
       };
     });
   }
+
+  async getRanking(challengeId: string) {
+    // 1. Agrupa os check-ins por usuário contando quantos 'VALID' cada um tem
+    const rankingAgrupado = await this.prisma.checkIn.groupBy({
+      by: ['userId'],
+      where: {
+        challengeId: challengeId,
+        status: 'VALID', // 🚨 Ignora completamente os treinos extras ('BONUS')
+      },
+      _count: {
+        id: true,
+      },
+      orderBy: {
+        _count: {
+          id: 'desc', // Maior número de treinos no topo
+        },
+      },
+    });
+
+    // 2. Hidrata os IDs trazendo nome e foto de perfil de cada um na ordem do pódio
+    const rankingComPerfil = await Promise.all(
+      rankingAgrupado.map(async (item, index) => {
+        const user = await this.prisma.user.findUnique({
+          where: { id: item.userId },
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        });
+
+        return {
+          posicao: index + 1,
+          userId: item.userId,
+          name: user?.name || 'Monstro Anônimo',
+          avatarUrl: user?.avatarUrl,
+          totalCheckIns: item._count.id,
+        };
+      }),
+    );
+
+    return rankingComPerfil;
+  }
 }

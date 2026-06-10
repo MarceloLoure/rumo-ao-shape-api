@@ -19,28 +19,59 @@ export class CheckInService {
     // 1. Valida se o monstro tá ativo no desafio
     const participant = await this.prisma.participant.findUnique({
       where: { challengeId_userId: { challengeId: dto.challengeId, userId: dto.userId } },
+      include: {
+        challenge: true,
+      }
     });
 
     if (!participant || participant.status !== 'ACTIVE') {
       throw new BadRequestException('Usuário não está ativo ou inscrito neste desafio.');
     }
 
-    // 2. Trava de segurança: Apenas 1 treino por dia
+
     const hojeInicio = new Date();
     hojeInicio.setHours(0, 0, 0, 0);
     const hojeFim = new Date();
     hojeFim.setHours(23, 59, 59, 999);
 
-    const checkInDuplicado = await this.prisma.checkIn.findFirst({
+    const jaTemValidHoje = await this.prisma.checkIn.findFirst({
       where: {
         userId: dto.userId,
         challengeId: dto.challengeId,
+        status: 'VALID',
         createdAt: { gte: hojeInicio, lte: hojeFim },
       },
     });
 
-    if (checkInDuplicado) {
-      throw new BadRequestException('🔥 Calma monstro! Já registrou um treino hoje.');
+    const agora = new Date();
+    const diaDaSemana = agora.getDay(); // 0 = Domingo, 1 = Segunda, 2 = Terça...
+    const distanciaParaSegunda = diaDaSemana === 0 ? -6 : 1 - diaDaSemana; // Ajuste para a semana começar na Segunda
+    
+    const inicioDaSemana = new Date(agora);
+    inicioDaSemana.setDate(agora.getDate() + distanciaParaSegunda);
+    inicioDaSemana.setHours(0, 0, 0, 0);
+
+    const totalValidosNaSemana = await this.prisma.checkIn.count({
+      where: {
+        userId: dto.userId,
+        challengeId: dto.challengeId,
+        status: 'VALID',
+        createdAt: { gte: inicioDaSemana },
+      },
+    });
+
+    const limitePermitidoDoDesafio = participant.challenge.metaSemanal;
+
+    // 🧠 REGRA DE NEGÓCIO: Se já tem um válido hoje, o novo entra como 'BONUS'. Se não, entra como 'VALID'.
+    let statusFinal: 'VALID' | 'BONUS' = 'VALID';
+    let message = 'Treino pago com sucesso! Computado na meta da semana! 🏁';
+
+    if (jaTemValidHoje) {
+      statusFinal = 'BONUS';
+      message = 'Mais um pra conta, monstro! Postado como treino bônus no feed (Você já treinou hoje). 🏋️‍♂️';
+    } else if (totalValidosNaSemana >= limitePermitidoDoDesafio) {
+      statusFinal = 'BONUS';
+      message = `Meta semanal batida (${totalValidosNaSemana}/${limitePermitidoDoDesafio})! Postado como treino bônus no feed. Segue o plano! 🔥`;
     }
 
     // 3. Executa o Upload para o Storage e captura a URL pública
@@ -57,7 +88,7 @@ export class CheckInService {
         longitude: Number(dto.longitude),
         deviceUuid: dto.deviceUuid,
         source: 'APP',
-        status: 'VALID',
+        status: statusFinal as any,
         image: {
           create: {
             url: imageUrl,
@@ -74,7 +105,7 @@ export class CheckInService {
     });
 
     return {
-      message: 'Treino pago com sucesso! Foto enviada para o painel. 🏁',
+      message,
       checkin,
     };
   }

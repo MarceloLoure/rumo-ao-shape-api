@@ -4,7 +4,7 @@
 @token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MDY2NTYwOCwiZXhwIjoxNzgxMjcwNDA4fQ.9voHx2bZAKsaA1qTUbGSWKyMmZvrYVWVw0ZaKtaC-ko
 
 @userId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
-@challengeId = bb7e86bf-aca9-4b2d-8a06-69de89a71012
+@challengeId = a9f4b10e-4657-4c91-a88a-13193b76d746
 
 ### Enviar um treino válido anexando a foto do shape
 POST {{baseUrl}}/checkins
@@ -37,3 +37,9 @@ Content-Type: image/jpeg
 
 < ./capa.jpg
 --boundary_do_monstro--
+
+
+
+### Buscar o Ranking de Pontos do Desafio Atual
+GET {{baseUrl}}/challenges/{{challengeId}}/ranking
+Authorization: Bearer {{token}}

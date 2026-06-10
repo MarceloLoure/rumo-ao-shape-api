@@ -1,4 +1,4 @@
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZTQ5MGMyMC04Mzc2LTQ5NDYtOWE1NS03OTU5OGM1Njg0NjEiLCJlbWFpbCI6Im1vbnN0cm9Ac2hhcGUuY29tIiwicGxhbiI6IkZSRUUiLCJpYXQiOjE3ODA5Mzc0NzEsImV4cCI6MTc4MTU0MjI3MX0.GmF0yGsVabvVFNWHgHXh6CABlAoOpG1QEuc54g1R09c
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZTQ5MGMyMC04Mzc2LTQ5NDYtOWE1NS03OTU5OGM1Njg0NjEiLCJlbWFpbCI6Im1vbnN0cm9Ac2hhcGUuY29tIiwicGxhbiI6IkZSRUUiLCJpYXQiOjE3ODEwNTkwMTksImV4cCI6MTc4MTY2MzgxOX0.D1JmOyVnYpHeAHEAiiW7YVxnZvP5EzO5UdglSHTKAp4
 @challengeId = a9f4b10e-4657-4c91-a88a-13193b76d746
 @targetUserId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
 
@@ -147,3 +147,7 @@ Content-Type: application/json
 GET http://localhost:3000/challenges/{{challengeId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
+
+### Buscar o Ranking de Pontos do Desafio Atual
+GET http://localhost:3000/challenges/{{challengeId}}/ranking
+Authorization: Bearer {{token}}

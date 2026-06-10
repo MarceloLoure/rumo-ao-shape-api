@@ -105,4 +105,12 @@ export class ChallengeController {
   ) {
     return this.challengeService.leaveChallenge(challengeId, user.sub);
   }
+
+    @Get(':id/ranking')
+    @ApiOperation({ summary: 'Busca o ranking de usuários com mais check-ins válidos no desafio' })
+    @ApiResponse({ status: 200, description: 'Ranking retornado com sucesso.' })
+    @ApiResponse({ status: 404, description: 'Desafio não encontrado.' })
+    async getChallengeRanking(@Param('id') challengeId: string) {
+      return this.challengeService.getRanking(challengeId);
+    }
 }

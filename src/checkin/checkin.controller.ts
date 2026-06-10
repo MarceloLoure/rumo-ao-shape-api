@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Query, Param } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CheckInService } from './checkin.service';
 import { CreateCheckInDto } from './dto/create-checkin.dto';

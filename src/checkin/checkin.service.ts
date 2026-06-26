@@ -89,6 +89,13 @@ export class CheckInService {
         deviceUuid: dto.deviceUuid,
         source: 'APP',
         status: statusFinal as any,
+        title: dto.title || null,
+        description: dto.description || null,
+        activity: dto.activity || null,
+        duration: dto.duration ? Number(dto.duration) : null,
+        distance: dto.distance ? Number(dto.distance) : null,
+        calories: dto.calories ? Number(dto.calories) : null,
+        steps: dto.steps ? Number(dto.steps) : null,
         image: {
           create: {
             url: imageUrl,

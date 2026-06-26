@@ -136,6 +136,14 @@ model CheckIn {
   status     CheckInStatus @default(VALID)
   createdAt  DateTime      @default(now())
 
+  title       String?       // Ex: "Cardio de Hoje Pago!" ou "Leg Day Brabo"
+  description String?       // Ex: "Treino focado em progressão de carga..."
+  activity    String?       // Ex: "RUNNING", "BODYBUILDING", "CYCLING", "WALKING"
+  duration    Int?          // Duração em minutos (Ex: 45)
+  distance    Float?        // Quilometragem percorrida (Ex: 5.25)
+  calories    Int?          // Calorias estimadas queimadas (Ex: 350)
+  steps       Int?          // Contador de passos (Ex: 7500)
+
   @@map("checkins")
 }
 

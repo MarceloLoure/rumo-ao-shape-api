@@ -1,13 +1,14 @@
-import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 import { PayCreditCardDto } from './dto/pay-credit-card.dto';
 
 @Injectable()
 export class AsaasService {
   private client: AxiosInstance;
+  private readonly logger = new Logger(AsaasService.name);
 
   constructor() {
-    // Inicializa o cliente HTTP configurado com o seu token da imagem
+
     this.client = axios.create({
       baseURL: process.env.ASAAS_API_URL,
       headers: {
@@ -150,4 +151,40 @@ export class AsaasService {
             throw new BadRequestException(asaasError);
         }
     }
+
+  async generatePixPayment(customerId: string, value: number, description: string, externalReference: string) {
+    try {
+      this.logger.log(`💳 [Asaas] Gerando cobrança PIX para o cliente ${customerId} no valor de R$ ${value}`);
+      
+      const invoiceResponse: any = await this.client.post('/payments', {
+        customer: customerId,
+        billingType: 'PIX',
+        value: value,
+        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Vence em 24h
+        description: description,
+        externalReference: externalReference,
+      });
+
+      const paymentId = invoiceResponse.data.id;
+      const invoiceUrl = invoiceResponse.data.invoiceUrl;
+
+      // 🌟 Passo 2: Buscar o QRCode e o Copia e Cola usando o seu client
+      const pixResponse: any = await this.client.get(`/payments/${paymentId}/pixQrCode`);
+
+      // Retorna o combo completo para o seu service local gravar e mandar pro Flutter
+      return {
+        asaasPaymentId: paymentId,
+        invoiceUrl: invoiceUrl,
+        encodedImage: pixResponse.data.encodedImage || '',
+        payload: pixResponse.data.payload || '',
+        expirationDate: pixResponse.data.expirationDate || '',
+      };
+
+    } catch (error: any) {
+      this.logger.error(`❌ Erro ao gerar PIX no Asaas: ${error.response?.data?.errors?.[0]?.description || error.message}`);
+      throw new BadRequestException(
+        `Falha ao processar pagamento via PIX: ${error.response?.data?.errors?.[0]?.description || 'Erro interno no gateway'}`
+      );
+    }
+  }
 }

@@ -638,7 +638,7 @@ export class ChallengeService {
       const description = `Inscrição + Caução - Desafio: ${challenge.title}`;
 
       // Executa a chamada HTTP para o Sandbox do Asaas para gerar o Pix Real
-      const asaasPayment = await this.asaasService.createPixInvoice(
+      const asaasPayment = await this.asaasService.generatePixPayment(
         customerId,
         custoTotal,
         description,
@@ -651,9 +651,9 @@ export class ChallengeService {
           id: localInvoiceId,
           userId: user.id,
           challengeId: challenge.id,
-          gatewayInvoiceId: asaasPayment.gatewayInvoiceId,
-          pixCopyPaste: asaasPayment.pixCopyPaste,
-          pixQrCodeUrl: asaasPayment.pixQrCodeUrl,
+          gatewayInvoiceId: asaasPayment.asaasPaymentId,
+          pixCopyPaste: asaasPayment.payload, 
+          pixQrCodeUrl: asaasPayment.encodedImage,
           type: 'CHALLENGE_ENTRY',
           status: 'PENDING',
           value: custoTotal,
@@ -819,4 +819,5 @@ export class ChallengeService {
 
     return rankingComPerfil;
   }
+  
 }

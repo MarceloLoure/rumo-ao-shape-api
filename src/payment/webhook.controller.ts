@@ -25,6 +25,9 @@ export class WebhookController {
     if (body.event === 'PAYMENT_CONFIRMED' || body.event === 'PAYMENT_RECEIVED') {
       const localInvoiceId = body.payment?.externalReference;
 
+      const netValueAsaas = Number(body.payment?.netValue); // Valor real que sobrou
+      const feeAsaas = Number(body.payment?.fee) || 0;
+
       if (!localInvoiceId) {
         console.warn('⚠️ Cobrança recebida sem externalReference (ignorado).');
         return { received: true };
@@ -67,21 +70,32 @@ export class WebhookController {
               });
 
               if (challenge) {
-                const taxa = Number(challenge.taxaInscricao);
-                const caucao = Number(challenge.valorCaucao);
+                const taxaInscricaoOriginal = Number(challenge.taxaInscricao);
+                const caucaoOriginal = Number(challenge.valorCaucao);
+                
+                // Se o desafio tem caução, descontamos a taxa do Asaas diretamente do cofre do grupo
+                // para que o lucro do Criador do desafio fique protegido!
+                let caucaoLiquida = caucaoOriginal - feeAsaas;
+                let taxaCriadorLiquida = taxaInscricaoOriginal;
 
-                if (taxa > 0) {
+                // Margem de segurança: Se a taxa for maior que a caução por algum motivo, desconta do total
+                if (caucaoLiquida < 0) {
+                  caucaoLiquida = 0;
+                  taxaCriadorLiquida = Math.max(0, netValueAsaas);
+                }
+
+                if (taxaCriadorLiquida > 0) {
                   await tx.user.update({
                     where: { id: challenge.creatorId },
-                    data: { walletBalance: { increment: taxa } },
+                    data: { walletBalance: { increment: taxaCriadorLiquida } },
                   });
                 }
 
-                if (caucao > 0) {
+                if (caucaoOriginal > 0) {
                   await tx.challengeTreasury.upsert({
                     where: { challengeId: challenge.id },
-                    update: { totalEscrowed: { increment: caucao } },
-                    create: { challengeId: challenge.id, totalEscrowed: caucao },
+                    update: { totalEscrowed: { increment: caucaoLiquida } }, // 🚀 Saldo líquido descontado!
+                    create: { challengeId: challenge.id, totalEscrowed: caucaoLiquida },
                   });
                 }
               }
@@ -103,11 +117,13 @@ export class WebhookController {
                 data: { status: ParticipantStatus.ACTIVE }, 
               });
 
+              const multaLiquida = netValueAsaas;
+
               // 2. Joga o dinheiro da multa direto para o cofre de multas recolhidas (collectedFines)
               await tx.challengeTreasury.upsert({
                 where: { challengeId: invoice.challengeId },
-                update: { collectedFines: { increment: Number(invoice.value) } },
-                create: { challengeId: invoice.challengeId, totalEscrowed: 0, collectedFines: Number(invoice.value) },
+                update: { collectedFines: { increment: multaLiquida } },
+                create: { challengeId: invoice.challengeId, totalEscrowed: 0, collectedFines: multaLiquida },
               });
             }
             break;

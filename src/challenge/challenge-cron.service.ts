@@ -152,7 +152,7 @@ export class ChallengeCronService {
 
               if (customerId) {
                 // Dispara a criação da cobrança de multa no Asaas
-                const asaasPayment = await this.asaasService.createPixInvoice(
+                const asaasPayment = await this.asaasService.generatePixPayment(
                   customerId,
                   valorMulta,
                   descricaoMulta,
@@ -161,19 +161,19 @@ export class ChallengeCronService {
 
                 // C) Registra a Invoice do tipo WEEKLY_FINE no banco local
                 await tx.invoice.create({
-                  data: {
-                    id: localInvoiceId,
-                    userId: participant.userId,
-                    challengeId: challenge.id,
-                    gatewayInvoiceId: asaasPayment.gatewayInvoiceId,
-                    pixCopyPaste: asaasPayment.pixCopyPaste,
-                    pixQrCodeUrl: asaasPayment.pixQrCodeUrl,
-                    type: InvoiceType.WEEKLY_FINE,
-                    status: 'PENDING',
-                    value: valorMulta,
-                    dueDate: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 horas para pagar
-                  },
-                });
+                data: {
+                  id: localInvoiceId,
+                  userId: participant.userId,
+                  challengeId: challenge.id,
+                  gatewayInvoiceId: asaasPayment.asaasPaymentId,
+                  pixCopyPaste: asaasPayment.payload, 
+                  pixQrCodeUrl: asaasPayment.encodedImage, 
+                  type: InvoiceType.WEEKLY_FINE,
+                  status: 'PENDING',
+                  value: valorMulta,
+                  dueDate: new Date(asaasPayment.expirationDate || Date.now() + 48 * 60 * 60 * 1000), 
+                },
+              });
               }
 
               // D) Log de segurança para auditoria

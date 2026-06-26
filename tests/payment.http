@@ -1,0 +1,26 @@
+### Variáveis Locais de Ambiente
+@baseUrl = http://localhost:3000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MjQ3OTU1NywiZXhwIjoxNzgzMDg0MzU3fQ.ElpGSk0w2Nn79mgsIY2TvsrmJRWaa56Xlv6HIBUPbt0
+@challengeId = bb7e86bf-aca9-4b2d-8a06-69de89a71012
+
+
+### 🚀 1. Solicitar Entrada em Desafio (Gera PIX de Inscrição)
+POST {{baseUrl}}/challenges/{{challengeId}}/join
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "paymentType": "PIX"
+}
+
+
+### 🚀 2. Pagar Multa por quebra de meta Semanal
+POST {{baseUrl}}/payments/fine
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "challengeId": "{{challengeId}}",
+  "value": 20.00,
+  "description": "Multa por furação de meta na semana 2 - Rumo Ao Shape"
+}

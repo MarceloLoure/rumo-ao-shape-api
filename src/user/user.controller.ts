@@ -1,4 +1,4 @@
-import { Controller, Post, Patch, Param, Body, ParseFloatPipe, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Body, ParseFloatPipe, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
@@ -45,5 +45,10 @@ export class UserController {
     return this.userService.updateFcmToken(dto);
   }
 
+  @Get(':id/pending-invoices')
+  @ApiOperation({ summary: 'Busca faturas em aberto/pendentes de pagamento do usuário' })
+  async getPending(@Param('id') userId: string) {
+    return this.userService.getPendingInvoices(userId);
+  }
 
 }

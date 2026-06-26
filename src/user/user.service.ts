@@ -153,4 +153,42 @@ export class UserService {
       },
     });
   }
+
+  async getPendingInvoices(userId: string) {
+    // 1. Verifica se o monstro existe
+    const userExists = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!userExists) throw new NotFoundException('Usuário não encontrado.');
+
+    // 2. Puxa todas as faturas locais com status PENDING ordenadas pelas mais urgentes
+    const pendingInvoices = await this.prisma.invoice.findMany({
+      where: {
+        userId,
+        status: 'PENDING',
+      },
+      include: {
+        challenge: {
+          select: {
+            title: true,
+          },
+        },
+      },
+      orderBy: {
+        dueDate: 'asc',
+      },
+    });
+
+    return {
+      userId,
+      totalPending: pendingInvoices.length,
+      invoices: pendingInvoices.map((inv) => ({
+        id: inv.id,
+        type: inv.type, // CHALLENGE_ENTRY, WEEKLY_FINE, PLAN_SUBSCRIPTION
+        value: Number(inv.value),
+        pixCopyPaste: inv.pixCopyPaste,
+        pixQrCodeUrl: inv.pixQrCodeUrl, // Base64 da imagem real que salvamos do Asaas
+        dueDate: inv.dueDate,
+        challengeTitle: inv.challenge?.title || 'Upgrade de Plano Premium',
+      })),
+    };
+  }
 }

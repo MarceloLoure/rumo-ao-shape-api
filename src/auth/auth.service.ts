@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { ParticipantStatus } from '@prisma/client';
+import { ParticipantStatus, InvoiceStatus } from '@prisma/client';
 import * as admin from 'firebase-admin';
 import { LoginSocialDto } from './dto/login-social.dto';
 import { RegisterManualDto } from './dto/register-manual.dto';
@@ -19,6 +19,10 @@ export class AuthService {
       where: { status: ParticipantStatus.ACTIVE },
       include: { challenge: true },
     },
+    invoices: {
+      where: { status: InvoiceStatus.PENDING },
+      include: { challenge: { select: { title: true } } }
+    }
   };
 
   async loginWithFirebase(firebaseToken: string) {
@@ -180,10 +184,12 @@ export class AuthService {
   // Helper para gerar o JWT interno da nossa API
   private generateToken(user: any) {
     const payload = { sub: user.id, email: user.email, plan: user.plan };
+
     const totalFinesAccumulated = (user.participations || []).reduce(
       (sum: number, p: any) => sum + Number(p.finesPending || 0),
       0
     );
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -195,13 +201,26 @@ export class AuthService {
         avatarUrl: user.avatarUrl,
         walletBalance: user.walletBalance,
         totalFinesPending: totalFinesAccumulated,
+        hasPendingPayments: (user.invoices || []).length > 0,
+        pendingInvoices: (user.invoices || []).map((inv: any) => ({
+          id: inv.id,
+          gatewayInvoiceId: inv.gatewayInvoiceId,
+          type: inv.type, // 'CHALLENGE_ENTRY', 'WEEKLY_FINE', etc.
+          value: inv.value,
+          pixCopyPaste: inv.pixCopyPaste,
+          pixQrCodeUrl: inv.pixQrCodeUrl,
+          challengeTitle: inv.challenge?.title || 'Plataforma',
+          dueDate: inv.dueDate,
+        })),
         activeChallenges: (user.participations || []).map((p: any) => ({
           id: p.challenge.id,
-          name: p.challenge.name,
+          name: p.challenge.title, // 🧠 Corrigido de p.challenge.name para title, conforme seu model Challenge
           taxaInscricao: p.challenge.taxaInscricao,
           valorCaucao: p.challenge.valorCaucao,
         })),
       }
     };
   }
+
+  
 }

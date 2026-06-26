@@ -2,7 +2,7 @@
 # Altere para apontar para a produção se quiser: https://rumo-ao-shape-api.onrender.com
 @baseUrl = http://localhost:3000
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZTQ5MGMyMC04Mzc2LTQ5NDYtOWE1NS03OTU5OGM1Njg0NjEiLCJlbWFpbCI6Im1vbnN0cm9Ac2hhcGUuY29tIiwicGxhbiI6IkZSRUUiLCJpYXQiOjE3ODA2NzYyOTcsImV4cCI6MTc4MTI4MTA5N30.axzOy0NSqT4IiklcR8mkWvUi3YBrthgWqxtGCiR8dlU
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MjUwMTE5OSwiZXhwIjoxNzgzMTA1OTk5fQ.bsjsyyXfp-KRy4SDV55kXA7NUTYe8a54oQGwGHsRJ5w
 
 @userId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
 
@@ -20,7 +20,7 @@ Marcelo Lourenço Alterado
 --boundary_update_perfil
 Content-Disposition: form-data; name="cpf"
 
-12345678901
+07107381969
 --boundary_update_perfil
 # 🧠 Campo opcional: se quiser testar alterando a foto do avatar, descomente as linhas abaixo
 # indicando o caminho de uma imagem real na sua máquina (ex: ./capa.jpg)
@@ -41,3 +41,9 @@ Content-Type: application/json
   "userId": "{{userId}}",
   "fcmToken": "fcm_token_gigante_enviado_pelo_flutter_1234567890_abcdef"
 }
+
+
+### 💳 Buscar Faturas Pendentes do Usuário (Para o Pull to Refresh do Flutter)
+GET {{baseUrl}}/users/{{userId}}/pending-invoices
+Authorization: Bearer {{token}}
+Content-Type: application/json

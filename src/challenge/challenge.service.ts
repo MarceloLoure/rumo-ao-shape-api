@@ -16,7 +16,7 @@ export class ChallengeService {
     private readonly asaasService: AsaasService,
   ) {}
 
-  async create(dto: CreateChallengeDto, file?: Express.Multer.File) {
+  async create(dto: CreateChallengeDto, creatorId: string, file?: Express.Multer.File) {
     try {
 
       const normalizedTitle = dto.title.trim();
@@ -44,7 +44,7 @@ export class ChallengeService {
       const isFree = String(dto.isFree) === 'true';
 
       const user = await this.prisma.user.findUnique({
-        where: { id: dto.creatorId }
+        where: { id: creatorId }
       });
 
       if (!user) {
@@ -70,7 +70,7 @@ export class ChallengeService {
 
         // Conta quantos desafios ele já criou na vida
         const totalCriados = await this.prisma.challenge.count({
-          where: { creatorId: dto.creatorId,
+          where: { creatorId: creatorId,
             status: {
               in: ['PENDING', 'ACTIVE'] // Conta se tem algum desafio pendente ou já rolando
             }

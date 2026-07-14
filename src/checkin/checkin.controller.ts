@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CheckInService } from './checkin.service';
 import { CreateCheckInDto } from './dto/create-checkin.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 @Controller('checkins')
 export class CheckInController {
@@ -35,8 +36,8 @@ export class CheckInController {
   @ApiResponse({ status: 400, description: 'Parâmetros inválidos.' })
   async getHistory(
     @Query('challengeId') challengeId: string,
-    @Query('userId') userId: string,
+    @CurrentUser() user: any,
   ) {
-    return this.checkInService.getHistory(challengeId, userId);
+    return this.checkInService.getHistory(challengeId, user.sub);
   }
 }

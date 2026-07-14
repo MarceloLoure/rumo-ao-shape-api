@@ -20,11 +20,11 @@ export class UserController {
   @ApiResponse({ status: 400, description: 'Dados inválidos ou CPF mal formatado.' })
   @ApiResponse({ status: 409, description: 'CPF já está em uso.' })
   async updateProfile(
-    @Param('id') userId: string,
+   @CurrentUser() user: any,
     @Body() dto: UpdateProfileDto,
     @UploadedFile() file?: Express.Multer.File, // 🌟 Injeta o arquivo físico recebido aqui
   ) {
-    return this.userService.updateProfile(userId, dto, file);
+    return this.userService.updateProfile(user.id, dto, file);
   }
 
   @Post(':id/deposit')
@@ -33,10 +33,10 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Depósito de teste realizado com sucesso' })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   async deposit(
-    @Param('id') userId: string,
+    @CurrentUser() user: any,
     @Body('amount', ParseFloatPipe) amount: number,
   ) {
-    return this.userService.deposit(userId, amount);
+    return this.userService.deposit(user.id, amount);
   }
 
   @Patch('fcm-token')
@@ -50,17 +50,19 @@ export class UserController {
 
   @Get(':id/pending-invoices')
   @ApiOperation({ summary: 'Busca faturas em aberto/pendentes de pagamento do usuário' })
-  async getPending(@Param('id') userId: string) {
-    return this.userService.getPendingInvoices(userId);
+  async getPending(
+    @CurrentUser() user: any,
+  ) {
+    return this.userService.getPendingInvoices(user.id);
   }
 
   @Get(':id/invoices')
   @ApiOperation({ summary: 'Histórico de faturas completo, paginado e filtrável do usuário' })
   async getHistory(
-      @Param('id') userId: string,
+      @CurrentUser() user: any,
       @Query() query: GetInvoicesQueryDto,
     ) {
-      return this.userService.getUserInvoicesHistory(userId, query);
+      return this.userService.getUserInvoicesHistory(user.id, query);
   }
 
   @Patch('invoices/:id/manual-confirm')

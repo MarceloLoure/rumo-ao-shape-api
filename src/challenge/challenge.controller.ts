@@ -21,9 +21,10 @@ export class ChallengeController {
   @ApiOperation({ summary: 'Cria um novo desafio (Com upload de capa)' })
   async create(
     @Body() dto: CreateChallengeDto,
+    @CurrentUser() user: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.challengeService.create(dto, file);
+    return this.challengeService.create(dto, user.sub, file);
   }
 
   @Patch(':id')
@@ -132,7 +133,7 @@ export class ChallengeController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('challenges/:challengeId/approvals')
+  @Get(':challengeId/approvals')
   @ApiOperation({ summary: 'Admin lista solicitações de entrada pendentes ou aprovadas do seu desafio' })
   async getApprovals(
     @Param('challengeId') challengeId: string,

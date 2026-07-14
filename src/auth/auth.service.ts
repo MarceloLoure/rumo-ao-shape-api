@@ -73,7 +73,9 @@ export class AuthService {
       const payload = { 
         sub: user.id, 
         email: user.email,
-        name: user.name 
+        name: user.name ,
+        id: user.id,
+        plan: user.plan,
       };
 
       return {
@@ -183,7 +185,7 @@ export class AuthService {
 
   // Helper para gerar o JWT interno da nossa API
   private generateToken(user: any) {
-    const payload = { sub: user.id, email: user.email, plan: user.plan };
+    const payload = { sub: user.id, email: user.email, plan: user.plan, id: user.id, name: user.name };
 
     const totalFinesAccumulated = (user.participations || []).reduce(
       (sum: number, p: any) => sum + Number(p.finesPending || 0),

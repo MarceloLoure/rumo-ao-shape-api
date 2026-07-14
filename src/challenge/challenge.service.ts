@@ -122,7 +122,7 @@ export class ChallengeService {
           data: {
             title: dto.title,
             description: dto.description,
-            creatorId: dto.creatorId,
+            creatorId: creatorId,
             metaSemanal: metaSemanal,
             taxaInscricao: user.plan === 'FREE' ? 0.00 : taxaInscricao,
             valorCaucao: user.plan === 'FREE' ? 0.00 : valorCaucao,
@@ -140,7 +140,7 @@ export class ChallengeService {
         await tx.participant.create({
           data: {
             challengeId: challenge.id,
-            userId: dto.creatorId,
+            userId: creatorId,
             status: 'ACTIVE', // O dono do jogo entra direto, sem passar por PENDING_PAYMENT
             escrowBalance: 0.00 // O criador não retém saldo de caução inicial com o gateway
           }

@@ -1,10 +1,12 @@
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
 import { FirebaseStorageService } from 'src/storage/firebase-storage.service';
 import { AsaasService } from 'src/payment/asaas.service';
 import * as crypto from 'crypto';
+import { ParticipantStatus } from '@prisma/client';
+import { ApprovalFilterStatus, GetPendingApprovalsQueryDto } from './dto/GetPendingApprovalsQueryDto.dto';
 
 @Injectable()
 export class ChallengeService {
@@ -606,9 +608,36 @@ export class ChallengeService {
       const taxa = Number(challenge.taxaInscricao);
       const caucao = Number(challenge.valorCaucao);
       const custoTotal = taxa + caucao;
+      const isChallengeFree = custoTotal === 0 || challenge.isFree;
 
-      // 6. Fluxo para desafios 100% gratuitos (Ex: Usuários FREE jogando entre si)
-      if (custoTotal === 0 || challenge.isFree) {
+      if (isChallengeFree) {
+        // 🌟 NOVA REGRA: Se o desafio gratuito exigir aprovação, coloca na fila
+        if ((challenge as any).requiresApproval) {
+          const participant = await tx.participant.create({
+            data: {
+              challengeId,
+              userId,       
+              status: 'WAITING_APPROVAL' as any, // ⏳ Fica aguardando a moderação do admin
+              escrowBalance: 0.00
+            }
+          });
+
+          await tx.auditLog.create({
+            data: {
+              userId,
+              action: 'CHALLENGE_REQUEST_JOIN',
+              description: `Usuário ${user.name} solicitou entrada no desafio gratuito "${challenge.title}" que exige moderação.`
+            }
+          });
+
+          return {
+            message: 'Sua solicitação de entrada foi enviada! Aguarde a aprovação do administrador do grupo. ⏳👊',
+            participantStatus: participant.status,
+            participant
+          };
+        }
+
+        // Se for gratuito e não exigir aprovação, ativa na hora
         const participant = await tx.participant.create({
           data: {
             challengeId,
@@ -617,8 +646,18 @@ export class ChallengeService {
             escrowBalance: 0.00
           }
         });
+
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action: 'JOIN_CHALLENGE_FREE',
+            description: `Usuário ${user.name} entrou diretamente no desafio gratuito "${challenge.title}".`
+          }
+        });
+
         return {
           message: 'Inscrição realizada com sucesso! Desafio gratuito. 💪🔥',
+          participantStatus: participant.status,
           participant
         };
       }
@@ -819,5 +858,154 @@ export class ChallengeService {
 
     return rankingComPerfil;
   }
+
+  async moderateParticipant(
+    challengeId: string,
+    participantId: string, // ID do registro na tabela Participant
+    adminId: string,
+    action: 'APPROVE' | 'REJECT',
+  ) {
+    // 1. Valida se o desafio existe e se quem está aprovando é o criador
+    const challenge = await this.prisma.challenge.findUnique({
+      where: { id: challengeId },
+    });
+
+    if (!challenge) throw new NotFoundException('Desafio não encontrado.');
+    if (challenge.creatorId !== adminId) {
+      throw new UnauthorizedException('Apenas o criador do desafio pode moderar membros.');
+    }
+
+    // 2. Busca o participante pendente
+    const participant = await this.prisma.participant.findUnique({
+      where: { id: participantId },
+      include: { user: true },
+    });
+
+    if (!participant || participant.challengeId !== challengeId) {
+      throw new NotFoundException('Inscrição do participante não encontrada neste desafio.');
+    }
+
+    if (participant.status !== ParticipantStatus.WAITING_APPROVAL) {
+      throw new BadRequestException('Este participante não está aguardando aprovação.');
+    }
+
+    if (action === 'APPROVE') {
+      // Ativa o monstro no desafio
+      await this.prisma.participant.update({
+        where: { id: participantId },
+        data: { status: ParticipantStatus.ACTIVE },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          userId: participant.userId,
+          action: 'CHALLENGE_JOIN_APPROVED',
+          description: `Admin ${adminId} aprovou a entrada de ${participant.user.name} no desafio.`,
+        },
+      });
+
+      return { message: 'Participante aprovado e ativado no desafio!' };
+    } else {
+      // Remove o registro se for rejeitado
+      await this.prisma.participant.delete({
+        where: { id: participantId },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          userId: participant.userId,
+          action: 'CHALLENGE_JOIN_REJECTED',
+          description: `Admin ${adminId} rejeitou a entrada de ${participant.user.name} no desafio.`,
+        },
+      });
+
+      return { message: 'Solicitação rejeitada e removida com sucesso.' };
+    }
+  }
   
+  async getChallengeApprovals(
+    challengeId: string,
+    adminId: string,
+    query: GetPendingApprovalsQueryDto,
+  ) {
+    const { page, limit, status, search } = query;
+    const parsedLimit = Number(limit) || 20;
+    const parsedPage = Number(page) || 1;
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // 1. Segurança: Valida se o desafio existe e se quem está chamando é o criador
+    const challenge = await this.prisma.challenge.findUnique({
+      where: { id: challengeId },
+    });
+
+    if (!challenge) {
+      throw new NotFoundException('Desafio não encontrado.');
+    }
+
+    if (challenge.creatorId !== adminId) {
+      throw new UnauthorizedException('Apenas o criador do desafio pode gerenciar as aprovações.');
+    }
+
+    // 2. Mapeia o filtro do DTO para o status real do banco de dados
+    const dbStatus = status === ApprovalFilterStatus.APPROVED ? 'ACTIVE' : 'WAITING_APPROVAL';
+
+    const whereClause: any = {
+      challengeId,
+      status: dbStatus,
+    };
+
+    // Filtro de busca por nome ou e-mail do participante
+    if (search) {
+      whereClause.user = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    // 3. Busca paginada
+    const [totalItems, participants] = await Promise.all([
+      this.prisma.participant.count({ where: whereClause }),
+      this.prisma.participant.findMany({
+        where: whereClause,
+        skip,
+        take: parsedLimit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: {
+          joinedAt: 'desc', // Os pedidos mais novos no topo
+        },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / parsedLimit);
+
+    return {
+      meta: {
+        totalItems,
+        itemCount: participants.length,
+        itemsPerPage: parsedLimit,
+        totalPages,
+        currentPage: parsedPage,
+      },
+      requests: participants.map((p) => ({
+        participantId: p.id, // ID da tabela Participant (usado para aprovar/rejeitar)
+        userId: p.user.id,
+        name: p.user.name,
+        email: p.user.email,
+        avatarUrl: p.user.avatarUrl,
+        joinedAt: p.joinedAt,
+        status: p.status, // ACTIVE ou WAITING_APPROVAL
+      })),
+    };
+  }
 }

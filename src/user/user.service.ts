@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AsaasService } from 'src/payment/asaas.service';
 import { FirebaseStorageService } from 'src/storage/firebase-storage.service';
+import { GetInvoicesQueryDto } from './dto/get-incoices.dto';
+import { InvoiceType, ParticipantStatus, PlanType } from '@prisma/client';
+import { GetChallengeInvoicesQueryDto } from './dto/GetChallengeInvoicesQueryDto.dto';
 
 @Injectable()
 export class UserService {
@@ -188,6 +191,290 @@ export class UserService {
         pixQrCodeUrl: inv.pixQrCodeUrl, // Base64 da imagem real que salvamos do Asaas
         dueDate: inv.dueDate,
         challengeTitle: inv.challenge?.title || 'Upgrade de Plano Premium',
+      })),
+    };
+  }
+
+  async getUserInvoicesHistory(userId: string, query: GetInvoicesQueryDto) {
+    const { page, limit, status, startDate, endDate } = query;
+
+    const parsedLimit = Number(limit) || 10;
+    const parsedPage = Number(page) || 1;
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // 1. Monta o filtro dinâmico
+    const whereClause: any = { userId };
+
+    if (status) {
+      whereClause.status = status;
+    }
+
+    // Filtro por intervalo de datas (createdAt)
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) {
+        whereClause.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Ajusta a data final para o final do dia (23:59:59) para não comer dados
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = end;
+      }
+    }
+
+    // 2. Executa a busca e a contagem total em paralelo (Performance de Sênior 🚀)
+    const [totalItems, invoices] = await Promise.all([
+      this.prisma.invoice.count({ where: whereClause }),
+      this.prisma.invoice.findMany({
+        where: whereClause,
+        skip: skip,            // ✅ Garantido como número
+        take: parsedLimit,
+        include: {
+          challenge: {
+            select: { title: true },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc', // Histórico mostra sempre o mais recente primeiro!
+        },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      meta: {
+        totalItems,
+        itemCount: invoices.length,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
+      items: invoices.map((inv) => ({
+        id: inv.id,
+        gatewayInvoiceId: inv.gatewayInvoiceId,
+        type: inv.type, // CHALLENGE_ENTRY, WEEKLY_FINE, PLAN_SUBSCRIPTION
+        status: inv.status, // PENDING, CONFIRMED, OVERDUE, REFUNDED
+        value: Number(inv.value),
+        pixCopyPaste: inv.pixCopyPaste,
+        pixQrCodeUrl: inv.pixQrCodeUrl,
+        dueDate: inv.dueDate,
+        createdAt: inv.createdAt,
+        challengeTitle: inv.challenge?.title || 'Upgrade de Plano Premium',
+      })),
+    };
+  }
+
+  async confirmInvoiceManually(invoiceId: string, adminId: string) {
+    // 1. Executa tudo dentro de uma transação isolada para blindar o banco
+    return this.prisma.$transaction(async (tx) => {
+      // Busca a fatura com os dados do desafio atrelado
+      const invoice = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: { challenge: true },
+      });
+
+      if (!invoice) {
+        throw new NotFoundException('Fatura não encontrada.');
+      }
+
+      if (invoice.status === 'CONFIRMED') {
+        throw new BadRequestException('Esta fatura já foi confirmada anteriormente.');
+      }
+
+      // 2. Trava de Segurança: Se for uma fatura de desafio, apenas o criador pode dar a baixa manual!
+      if (invoice.challengeId && invoice.challenge?.creatorId !== adminId) {
+        throw new UnauthorizedException('Apenas o administrador deste desafio pode confirmar este pagamento.');
+      }
+
+      // 3. Atualiza o status da fatura local para CONFIRMED
+      const updatedInvoice = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: { status: 'CONFIRMED' },
+      });
+
+      const valorBruto = Number(invoice.value);
+
+      // 4. Divide o comportamento baseado no tipo da Invoice (Igual ao Webhook, mas com taxa ZERO)
+      switch (invoice.type) {
+        case InvoiceType.CHALLENGE_ENTRY: {
+          if (invoice.challengeId) {
+            // Ativa o participante no grupo
+            await tx.participant.update({
+              where: {
+                challengeId_userId: {
+                  challengeId: invoice.challengeId,
+                  userId: invoice.userId,
+                },
+              },
+              data: { status: ParticipantStatus.ACTIVE },
+            });
+
+            const taxaInscricao = Number(invoice?.challenge?.taxaInscricao);
+            const caucao = Number(invoice?.challenge?.valorCaucao);
+
+            // Como foi por fora, o criador recebe o valor integral da taxa de inscrição na carteira local dele
+            if (taxaInscricao > 0) {
+              await tx.user.update({
+                where: { id: invoice?.challenge?.creatorId },
+                data: { walletBalance: { increment: taxaInscricao } },
+              });
+            }
+
+            // Alimenta o cofre do grupo com o valor bruto da caução (sem desconto de taxa de gateway!)
+            if (caucao > 0) {
+              await tx.challengeTreasury.upsert({
+                where: { challengeId: invoice.challengeId },
+                update: { totalEscrowed: { increment: caucao } },
+                create: { challengeId: invoice.challengeId, totalEscrowed: caucao },
+              });
+            }
+          }
+          break;
+        }
+
+        case InvoiceType.WEEKLY_FINE: {
+          if (invoice.challengeId) {
+            // Reativa o participante que estava na geladeira por falta
+            await tx.participant.update({
+              where: {
+                challengeId_userId: {
+                  challengeId: invoice.challengeId,
+                  userId: invoice.userId,
+                },
+              },
+              data: { status: ParticipantStatus.ACTIVE },
+            });
+
+            // Injeta a multa bruta direto no bolo de multas do grupo
+            await tx.challengeTreasury.upsert({
+              where: { challengeId: invoice.challengeId },
+              update: { collectedFines: { increment: valorBruto } },
+              create: { challengeId: invoice.challengeId, totalEscrowed: 0, collectedFines: valorBruto },
+            });
+          }
+          break;
+        }
+
+        case InvoiceType.PLAN_SUBSCRIPTION: {
+          // Se por acaso você vender o plano Premium por fora via pix pessoal
+          await tx.user.update({
+            where: { id: invoice.userId },
+            data: { plan: PlanType.PREMIUM },
+          });
+          break;
+        }
+      }
+
+      // 5. Injeta o Log de Auditoria especificando que a baixa foi MANUAL
+      await tx.auditLog.create({
+        data: {
+          userId: invoice.userId,
+          action: `MANUAL_CONFIRMED_${invoice.type}`,
+          description: `Administrador [${adminId}] confirmou manualmente o pagamento externo de R$ ${valorBruto.toFixed(2)} para a fatura [${invoiceId}] do tipo [${invoice.type}].`,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Pagamento baixado manualmente com sucesso! Regras aplicadas.',
+        invoiceStatus: updatedInvoice.status,
+      };
+    });
+  }
+
+  async getChallengePendingInvoices(
+    challengeId: string,
+    adminId: string,
+    query: GetChallengeInvoicesQueryDto,
+  ) {
+    const { page, limit, type, search } = query;
+    const parsedLimit = Number(limit) || 20;
+    const parsedPage = Number(page) || 1;
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // 1. Validar se o desafio existe e se quem está chamando é o dono/criador
+    const challenge = await this.prisma.challenge.findUnique({
+      where: { id: challengeId },
+    });
+
+    if (!challenge) {
+      throw new NotFoundException('Desafio não encontrado.');
+    }
+
+    if (challenge.creatorId !== adminId) {
+      throw new UnauthorizedException('Apenas o administrador deste desafio pode visualizar essas faturas.');
+    }
+
+    // 2. Montar o filtro das faturas pendentes do desafio
+    const whereClause: any = {
+      challengeId,
+      status: 'PENDING', // Apenas faturas pendentes de pagamento
+    };
+
+    if (type) {
+      whereClause.type = type;
+    }
+
+    // Filtro opcional por nome ou e-mail do participante
+    if (search) {
+      whereClause.user = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    // 3. Executar busca paginada e contagem em paralelo
+    const [totalItems, invoices] = await Promise.all([
+      this.prisma.invoice.count({ where: whereClause }),
+      this.prisma.invoice.findMany({
+        where: whereClause,
+        skip,
+        take: parsedLimit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc', // As mais recentes primeiro
+        },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / parsedLimit);
+
+    return {
+      meta: {
+        totalItems,
+        itemCount: invoices.length,
+        itemsPerPage: parsedLimit,
+        totalPages,
+        currentPage: parsedPage,
+      },
+      invoices: invoices.map((inv) => ({
+        id: inv.id,
+        gatewayInvoiceId: inv.gatewayInvoiceId,
+        type: inv.type, // CHALLENGE_ENTRY ou WEEKLY_FINE
+        value: Number(inv.value),
+        pixCopyPaste: inv.pixCopyPaste,
+        pixQrCodeUrl: inv.pixQrCodeUrl,
+        dueDate: inv.dueDate,
+        createdAt: inv.createdAt,
+        participant: {
+          id: inv.user.id,
+          name: inv.user.name,
+          email: inv.user.email,
+          avatarUrl: inv.user.avatarUrl,
+        },
       })),
     };
   }

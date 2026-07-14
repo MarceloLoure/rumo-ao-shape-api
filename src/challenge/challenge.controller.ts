@@ -1,4 +1,4 @@
-import { Controller, Post, Patch, Delete, Get, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Patch, Delete, Get, Body, Param, UseInterceptors, UploadedFile, UseGuards, BadRequestException, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ChallengeService } from './challenge.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
@@ -6,6 +6,8 @@ import { ApiTags, ApiConsumes, ApiOperation, ApiResponse, ApiBearerAuth } from '
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
 import { JoinByCodeDto } from './dto/join-by-code.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { GetPendingApprovalsQueryDto } from './dto/GetPendingApprovalsQueryDto.dto';
 
 @Controller('challenges')
 @ApiBearerAuth()
@@ -106,11 +108,37 @@ export class ChallengeController {
     return this.challengeService.leaveChallenge(challengeId, user.sub);
   }
 
-    @Get(':id/ranking')
-    @ApiOperation({ summary: 'Busca o ranking de usuários com mais check-ins válidos no desafio' })
-    @ApiResponse({ status: 200, description: 'Ranking retornado com sucesso.' })
-    @ApiResponse({ status: 404, description: 'Desafio não encontrado.' })
-    async getChallengeRanking(@Param('id') challengeId: string) {
-      return this.challengeService.getRanking(challengeId);
+  @Get(':id/ranking')
+  @ApiOperation({ summary: 'Busca o ranking de usuários com mais check-ins válidos no desafio' })
+  @ApiResponse({ status: 200, description: 'Ranking retornado com sucesso.' })
+  @ApiResponse({ status: 404, description: 'Desafio não encontrado.' })
+  async getChallengeRanking(@Param('id') challengeId: string) {
+    return this.challengeService.getRanking(challengeId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('challenges/:challengeId/moderate/:participantId')
+  @ApiOperation({ summary: 'Admin aprova ou rejeita um participante de forma manual' })
+  async moderate(
+    @Param('challengeId') challengeId: string,
+    @Param('participantId') participantId: string,
+    @CurrentUser() admin: any,
+    @Body('action') action: 'APPROVE' | 'REJECT',
+  ) {
+    if (action !== 'APPROVE' && action !== 'REJECT') {
+      throw new BadRequestException('Ação inválida. Use APPROVE ou REJECT.');
     }
+    return this.challengeService.moderateParticipant(challengeId, participantId, admin.id, action);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('challenges/:challengeId/approvals')
+  @ApiOperation({ summary: 'Admin lista solicitações de entrada pendentes ou aprovadas do seu desafio' })
+  async getApprovals(
+    @Param('challengeId') challengeId: string,
+    @CurrentUser() admin: any,
+    @Query() query: GetPendingApprovalsQueryDto,
+  ) {
+    return this.challengeService.getChallengeApprovals(challengeId, admin.id, query);
+  }
 }

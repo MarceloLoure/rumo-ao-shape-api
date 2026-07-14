@@ -50,4 +50,8 @@ export class CreateChallengeDto {
   @IsOptional()
   @IsString()
   inviteCode?: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Define se o desafio exige aprovação do admin para novos participantes' })
+  @IsOptional()
+  requiresApproval?: boolean;
 }

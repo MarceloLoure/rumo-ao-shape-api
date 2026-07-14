@@ -1,9 +1,12 @@
-import { Controller, Post, Get, Patch, Param, Body, ParseFloatPipe, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Query, Param, Body, ParseFloatPipe, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes } from '@nestjs/swagger';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { GetInvoicesQueryDto } from './dto/get-incoices.dto';
+import { GetChallengeInvoicesQueryDto } from './dto/GetChallengeInvoicesQueryDto.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 @Controller('users')
 export class UserController {
@@ -49,6 +52,34 @@ export class UserController {
   @ApiOperation({ summary: 'Busca faturas em aberto/pendentes de pagamento do usuário' })
   async getPending(@Param('id') userId: string) {
     return this.userService.getPendingInvoices(userId);
+  }
+
+  @Get(':id/invoices')
+  @ApiOperation({ summary: 'Histórico de faturas completo, paginado e filtrável do usuário' })
+  async getHistory(
+      @Param('id') userId: string,
+      @Query() query: GetInvoicesQueryDto,
+    ) {
+      return this.userService.getUserInvoicesHistory(userId, query);
+  }
+
+  @Patch('invoices/:id/manual-confirm')
+  @ApiOperation({ summary: 'Administrador confirma o pagamento de uma fatura por fora (dinheiro/PIX direto)' })
+  async manualConfirmInvoice(
+    @Param('id') invoiceId: string,
+    @CurrentUser() admin: any,
+  ) {
+    return this.userService.confirmInvoiceManually(invoiceId, admin.id);
+  }
+
+  @Get('challenges/:challengeId/pending-invoices')
+  @ApiOperation({ summary: 'Admin busca todas as faturas pendentes dos participantes do seu desafio' })
+  async getChallengePending(
+    @Param('challengeId') challengeId: string,
+    @CurrentUser() admin: any,
+    @Query() query: GetChallengeInvoicesQueryDto,
+  ) {
+    return this.userService.getChallengePendingInvoices(challengeId, admin.id, query);
   }
 
 }

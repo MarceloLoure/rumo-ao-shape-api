@@ -1,6 +1,8 @@
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZTQ5MGMyMC04Mzc2LTQ5NDYtOWE1NS03OTU5OGM1Njg0NjEiLCJlbWFpbCI6Im1vbnN0cm9Ac2hhcGUuY29tIiwicGxhbiI6IkZSRUUiLCJpYXQiOjE3ODEwNTkwMTksImV4cCI6MTc4MTY2MzgxOX0.D1JmOyVnYpHeAHEAiiW7YVxnZvP5EzO5UdglSHTKAp4
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MjQ3OTU1NywiZXhwIjoxNzgzMDg0MzU3fQ.ElpGSk0w2Nn79mgsIY2TvsrmJRWaa56Xlv6HIBUPbt0
 @challengeId = a9f4b10e-4657-4c91-a88a-13193b76d746
 @targetUserId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
+
+@baseUrl = http://localhost:3000
 
 ### 1. Criar Desafio Premium com Imagem de Capa Real (Inscrição Automática do Criador)
 POST http://localhost:3000/challenges
@@ -150,4 +152,45 @@ Content-Type: application/json
 
 ### Buscar o Ranking de Pontos do Desafio Atual
 GET http://localhost:3000/challenges/{{challengeId}}/ranking
+Authorization: Bearer {{token}}
+
+
+### 🚀 1. Buscar todas as pendências do desafio (Página 1, limite de 10)
+GET {{baseUrl}}/challenges/{{challengeId}}/pending-invoices?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "adminId": "id_do_admin_criador_do_desafio"
+}
+
+### 🚀 2. Buscar apenas multas semanais pendentes (WEEKLY_FINE)
+GET {{baseUrl}}/challenges/{{challengeId}}/pending-invoices?type=WEEKLY_FINE&page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "adminId": "id_do_admin_criador_do_desafio"
+}
+
+### 🚀 3. Buscar pendências de um participante específico pelo nome
+GET {{baseUrl}}/challenges/{{challengeId}}/pending-invoices?search=Cavaleiro&page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "adminId": "id_do_admin_criador_do_desafio"
+}
+
+
+### 🚀 1. Listar participantes aguardando aprovação (Fila de Espera)
+GET {{baseUrl}}/users/challenges/{{challengeId}}/approvals?status=PENDING&page=1&limit=15
+Authorization: Bearer {{token}}
+
+### 🚀 2. Listar histórico de participantes já aprovados e ativos no grupo
+GET {{baseUrl}}/users/challenges/{{challengeId}}/approvals?status=APPROVED&page=1&limit=15
+Authorization: Bearer {{token}}
+
+### 🚀 3. Buscar participante específico na fila de aprovação por nome
+GET {{baseUrl}}/users/challenges/{{challengeId}}/approvals?status=PENDING&search=Monstro&page=1&limit=10
 Authorization: Bearer {{token}}

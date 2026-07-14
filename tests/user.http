@@ -2,9 +2,11 @@
 # Altere para apontar para a produção se quiser: https://rumo-ao-shape-api.onrender.com
 @baseUrl = http://localhost:3000
 
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MjUwMTE5OSwiZXhwIjoxNzgzMTA1OTk5fQ.bsjsyyXfp-KRy4SDV55kXA7NUTYe8a54oQGwGHsRJ5w
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlhdCI6MTc4MjY5Njk0NSwiZXhwIjoxNzgzMzAxNzQ1fQ.M3ZMWsUsfujZ3TcX4wKxRBcRXF-gLknQNlRGMLCpM6M
 
 @userId = 7d2698ef-a55a-479f-867f-7d2de1e79d17
+
+@fatura_id_pendente = 9e3f1c5a-8b2d-4f6e-9c1a-2b3d4e5f6a7b
 
 
 ### 1. Atualizar Perfil do Usuário (Nome, CPF e Foto de Avatar)
@@ -47,3 +49,23 @@ Content-Type: application/json
 GET {{baseUrl}}/users/{{userId}}/pending-invoices
 Authorization: Bearer {{token}}
 Content-Type: application/json
+
+### 🚀 1. Buscar histórico geral (Página 1, trazendo 5 itens)
+GET {{baseUrl}}/users/{{userId}}/invoices?page=1&limit=5
+Authorization: Bearer {{token}}
+
+### 🚀 2. Filtrar apenas o que já foi PAGO (CONFIRMED)
+GET {{baseUrl}}/users/{{userId}}/invoices?status=CONFIRMED&page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 🚀 3. Filtrar por data específica (Ex: Mês de Junho de 2026)
+GET {{baseUrl}}/users/{{userId}}/invoices?startDate=2026-06-01&endDate=2026-06-30&page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 🟢 Administrador baixa pagamento recebido por fora (WhatsApp/Dinheiro)
+PATCH {{baseUrl}}/invoices/{{fatura_id_pendente}}/manual-confirm
+Content-Type: application/json
+
+{
+  "adminId": "id_do_admin_criador_do_desafio"
+}

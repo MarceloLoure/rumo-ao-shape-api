@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { SubscribeToPlanDto } from './dto/SubscribeToPlanDto.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 
 @Controller('subscriptions')
@@ -22,5 +25,16 @@ export class SubscriptionController {
     @ApiResponse({ status: 200, description: 'Lista de planos retornada com sucesso' })
   findAll() {
     return this.subscriptionService.getActivePlans();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('subscribe')
+  @ApiOperation({ summary: 'Contratar um plano de assinatura' })
+  @ApiResponse({ status: 201, description: 'Cobrança gerada ou plano ativado com sucesso' })
+  async subscribe(
+    @CurrentUser() user: any,
+    @Body() dto: SubscribeToPlanDto,
+  ) {
+    return this.subscriptionService.subscribeToPlan(user.id, dto);
   }
 }

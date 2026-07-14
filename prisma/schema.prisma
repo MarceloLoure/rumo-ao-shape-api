@@ -59,6 +59,8 @@ model Challenge {
   taxaInscricao Decimal @db.Decimal(10, 2) // Vai direto pro criador
   valorCaucao   Decimal @db.Decimal(10, 2) // Fica retido no cofre da plataforma
 
+  requiresApproval Boolean         @default(false)
+
   isFree Boolean @default(false)
 
   startDate DateTime @db.Timestamptz
@@ -105,6 +107,7 @@ enum ParticipantStatus {
   ELIMINATED // Saiu do grupo por falta de saldo de caução
   LEAVE // Saiu do grupo por vontade propria
   PENDING_PAYMENT //Entrou no desafio, mas a fatura de entrada está aberta
+  WAITING_APPROVAL 
 }
 
 // 4. Caixa do Desafio (O que o Administrador visualiza)

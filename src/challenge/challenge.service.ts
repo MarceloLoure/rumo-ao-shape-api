@@ -131,6 +131,7 @@ export class ChallengeService {
             endDate: end,
             fileId: fileId,
             inviteCode: codigoFinal,
+            requiresApproval: dto.requiresApproval ?? false,
           },
           include: {
             image: true,

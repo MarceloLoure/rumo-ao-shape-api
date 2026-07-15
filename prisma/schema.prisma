@@ -58,6 +58,7 @@ model Challenge {
   metaSemanal   Int // Qtd de treinos obrigatórios por semana (ex: 4)
   taxaInscricao Decimal @db.Decimal(10, 2) // Vai direto pro criador
   valorCaucao   Decimal @db.Decimal(10, 2) // Fica retido no cofre da plataforma
+  valorMulta       Decimal         @default(10.00) @db.Decimal(10, 2)
 
   requiresApproval Boolean         @default(false)
 

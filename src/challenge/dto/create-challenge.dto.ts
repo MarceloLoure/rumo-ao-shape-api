@@ -54,4 +54,8 @@ export class CreateChallengeDto {
   @ApiPropertyOptional({ example: true, description: 'Define se o desafio exige aprovação do admin para novos participantes' })
   @IsOptional()
   requiresApproval?: boolean;
+
+  @ApiPropertyOptional({ example: 10.00, description: 'Valor da multa aplicada ao participante que não cumprir a meta semanal' })
+  @IsOptional()
+  valorMulta?: number;
 }

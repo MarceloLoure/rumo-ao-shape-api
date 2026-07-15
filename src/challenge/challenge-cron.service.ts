@@ -184,13 +184,13 @@ export class ChallengeCronService {
   // Processa um único participante: conta check-ins da semana e aplica a punição (status e/ou multa) se necessário.
   // Lança exceção em caso de erro para que o chamador (com retry) possa decidir o que fazer — nunca engole o erro aqui.
   private async processarParticipante(
-    challenge: { id: string; title: string; metaSemanal: number; valorCaucao: unknown; isFree: boolean },
+    challenge: { id: string; title: string; metaSemanal: number; valorCaucao: unknown; valorMulta: unknown; isFree: boolean },
     participant: { id: string; userId: string; user: { name: string; email: string; cpf: string | null; gatewayCustomerId: string | null } },
     agora: Date,
     segundaFeira: Date,
   ): Promise<void> {
     const metaExigida = challenge.metaSemanal;
-    const valorMulta = Number(challenge.valorCaucao);
+    const valorMulta = Number(challenge.valorMulta);
 
     // 1. Conta quantos check-ins VÁLIDOS o participante fez nesta semana específica
     const totalCheckInsNaSemana = await this.prisma.checkIn.count({

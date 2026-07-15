@@ -134,6 +134,7 @@ export class ChallengeService {
             fileId: fileId,
             inviteCode: codigoFinal,
             requiresApproval: requiresApproval,
+            valorMulta: Number(dto.valorMulta),
           },
           include: {
             image: true,

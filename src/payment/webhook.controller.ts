@@ -66,28 +66,13 @@ export class WebhookController {
 
               if (challenge) {
                 const taxaInscricaoOriginal = Number(challenge.taxaInscricao);
-                const caucaoOriginal = Number(challenge.valorCaucao);
                 
-                let caucaoLiquida = caucaoOriginal - feeAsaas;
                 let taxaCriadorLiquida = taxaInscricaoOriginal;
-
-                if (caucaoLiquida < 0) {
-                  caucaoLiquida = 0;
-                  taxaCriadorLiquida = Math.max(0, netValueAsaas);
-                }
 
                 if (taxaCriadorLiquida > 0) {
                   await tx.user.update({
                     where: { id: challenge.creatorId },
                     data: { walletBalance: { increment: taxaCriadorLiquida } },
-                  });
-                }
-
-                if (caucaoOriginal > 0) {
-                  await tx.challengeTreasury.upsert({
-                    where: { challengeId: challenge.id },
-                    update: { totalEscrowed: { increment: caucaoLiquida } },
-                    create: { challengeId: challenge.id, totalEscrowed: caucaoLiquida },
                   });
                 }
               }

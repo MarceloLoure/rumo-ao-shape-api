@@ -25,10 +25,6 @@ export class CreateChallengeDto {
   @IsNotEmpty()
   taxaInscricao: number;
 
-  @ApiProperty({ example: 50.00, description: 'Valor retido semanalmente no cofre' })
-  @IsNotEmpty()
-  valorCaucao: number;
-
   @ApiProperty({ example: '2026-06-01T00:00:00.000Z', description: 'Data de início em formato ISO' })
   @IsNotEmpty()
   @IsString()

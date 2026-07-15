@@ -38,8 +38,8 @@ export class ChallengeService {
       }
 
       const taxaInscricao = Number(dto.taxaInscricao);
-      const valorCaucao = Number(dto.valorCaucao);
       const metaSemanal = parseInt(dto.metaSemanal as any, 10);
+      const valorMulta = Number(dto.valorMulta);
 
       const isFree = String(dto.isFree) === 'true';
 
@@ -66,7 +66,7 @@ export class ChallengeService {
 
       if (user.plan === 'FREE') {
         // Se ele tentar criar um desafio com grana sendo FREE, já barra
-        if (taxaInscricao > 0 || valorCaucao > 0 || !isFree) {
+        if (taxaInscricao > 0 || !isFree) {
           throw new BadRequestException('🚨 Usuários FREE só podem criar desafios 100% gratuitos, sem taxas ou caução.');
         }
 
@@ -127,14 +127,13 @@ export class ChallengeService {
             creatorId: creatorId,
             metaSemanal: metaSemanal,
             taxaInscricao: user.plan === 'FREE' ? 0.00 : taxaInscricao,
-            valorCaucao: user.plan === 'FREE' ? 0.00 : valorCaucao,
             isFree: user.plan === 'FREE' ? true : isFree,
             startDate: start,
             endDate: end,
             fileId: fileId,
             inviteCode: codigoFinal,
             requiresApproval: requiresApproval,
-            valorMulta: Number(dto.valorMulta),
+            valorMulta: Number(dto.valorMulta) || 0.00,
           },
           include: {
             image: true,
@@ -164,7 +163,7 @@ export class ChallengeService {
           data: {
             userId: dto.creatorId,
             action: 'CREATE_CHALLENGE',
-            description: `Desafio "${challenge.title}" criado com caução de R$ ${dto.valorCaucao} e meta de ${dto.metaSemanal}x na semana.`,
+            description: `Desafio "${challenge.title}" criado com meta de ${dto.metaSemanal}x na semana.`,
           },
         });
 
@@ -610,8 +609,7 @@ export class ChallengeService {
       }
 
       const taxa = Number(challenge.taxaInscricao);
-      const caucao = Number(challenge.valorCaucao);
-      const custoTotal = taxa + caucao;
+      const custoTotal = taxa;
       const isChallengeFree = custoTotal === 0 || challenge.isFree;
 
       if (isChallengeFree) {
@@ -671,7 +669,6 @@ export class ChallengeService {
         data: {
           challengeId,
           userId,
-          escrowBalance: challenge.valorCaucao,
           status: 'PENDING_PAYMENT' // Fica travado na geladeira
         }
       });

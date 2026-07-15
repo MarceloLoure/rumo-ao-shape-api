@@ -78,7 +78,6 @@ export class PaymentController {
 
           if (challenge) {
             const taxa = Number(challenge.taxaInscricao);
-            const caucao = Number(challenge.valorCaucao);
 
             if (taxa > 0) {
               await tx.user.update({
@@ -165,20 +164,11 @@ export class PaymentController {
 
             if (challenge) {
                 const taxa = Number(challenge.taxaInscricao);
-                const caucao = Number(challenge.valorCaucao);
 
                 if (taxa > 0) {
                 await tx.user.update({
                     where: { id: challenge.creatorId },
                     data: { walletBalance: { increment: taxa } },
-                });
-                }
-
-                if (caucao > 0) {
-                await tx.challengeTreasury.upsert({
-                    where: { challengeId: challenge.id },
-                    update: { totalEscrowed: { increment: caucao } },
-                    create: { challengeId: challenge.id, totalEscrowed: caucao },
                 });
                 }
             }

@@ -312,22 +312,12 @@ export class UserService {
             });
 
             const taxaInscricao = Number(invoice?.challenge?.taxaInscricao);
-            const caucao = Number(invoice?.challenge?.valorCaucao);
 
             // Como foi por fora, o criador recebe o valor integral da taxa de inscrição na carteira local dele
             if (taxaInscricao > 0) {
               await tx.user.update({
                 where: { id: invoice?.challenge?.creatorId },
                 data: { walletBalance: { increment: taxaInscricao } },
-              });
-            }
-
-            // Alimenta o cofre do grupo com o valor bruto da caução (sem desconto de taxa de gateway!)
-            if (caucao > 0) {
-              await tx.challengeTreasury.upsert({
-                where: { challengeId: invoice.challengeId },
-                update: { totalEscrowed: { increment: caucao } },
-                create: { challengeId: invoice.challengeId, totalEscrowed: caucao },
               });
             }
           }

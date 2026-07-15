@@ -43,6 +43,8 @@ export class ChallengeService {
 
       const isFree = String(dto.isFree) === 'true';
 
+      const requiresApproval = String(dto.requiresApproval) === 'true';
+
       const user = await this.prisma.user.findUnique({
         where: { id: creatorId }
       });
@@ -131,7 +133,7 @@ export class ChallengeService {
             endDate: end,
             fileId: fileId,
             inviteCode: codigoFinal,
-            requiresApproval: dto.requiresApproval ?? false,
+            requiresApproval: requiresApproval,
           },
           include: {
             image: true,

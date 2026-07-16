@@ -16,7 +16,11 @@ export class AuthService {
 
   private readonly userIncludeOptions = {
     participations: {
-      where: { status: ParticipantStatus.ACTIVE },
+      where: { 
+        status: { 
+          in: [ParticipantStatus.ACTIVE, ParticipantStatus.WAITING_APPROVAL] 
+        } 
+      },
       include: { challenge: true },
     },
     invoices: {
@@ -78,21 +82,33 @@ export class AuthService {
         plan: user.plan,
       };
 
+      const participations = user.participations || [];
+
       return {
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
-          cpf: user.cpf, // 🚨 ADICIONADO: Retorna o CPF no login social
-          avatarUrl: user.avatarUrl, // 🚨 ADICIONADO: Garante o avatarUrl atualizado do banco
+          cpf: user.cpf, 
+          avatarUrl: user.avatarUrl, 
           walletBalance: user.walletBalance,
-          // 🚨 ADICIONADO: Mapeia os desafios ativos direto aqui também
-          activeChallenges: (user.participations || []).map((p: any) => ({
-            id: p.challenge.id,
-            name: p.challenge.name,
-            taxaInscricao: p.challenge.taxaInscricao,
-            valorCaucao: p.challenge.valorCaucao,
-          })),
+          // 🌟 ATUALIZADO: Filtra apenas os desafios ATIVOS para este array
+          activeChallenges: participations
+            .filter((p: any) => p.status === ParticipantStatus.ACTIVE)
+            .map((p: any) => ({
+              id: p.challenge.id,
+              name: p.challenge.title, // Corrigido de name para title
+              taxaInscricao: p.challenge.taxaInscricao,
+            })),
+          // 🌟 NOVO: Envia um array dedicado das solicitações pendentes de aprovação
+          pendingApprovals: participations
+            .filter((p: any) => p.status === ParticipantStatus.WAITING_APPROVAL)
+            .map((p: any) => ({
+              id: p.challenge.id,
+              name: p.challenge.title,
+              taxaInscricao: p.challenge.taxaInscricao,
+              requestedAt: p.joinedAt,
+            })),
         },
         backend_token: this.jwtService.sign(payload),
       };
@@ -192,6 +208,8 @@ export class AuthService {
       0
     );
 
+    const participations = user.participations || [];
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -214,11 +232,20 @@ export class AuthService {
           challengeTitle: inv.challenge?.title || 'Plataforma',
           dueDate: inv.dueDate,
         })),
-        activeChallenges: (user.participations || []).map((p: any) => ({
-          id: p.challenge.id,
-          name: p.challenge.title, // 🧠 Corrigido de p.challenge.name para title, conforme seu model Challenge
-          taxaInscricao: p.challenge.taxaInscricao,
-          valorCaucao: p.challenge.valorCaucao,
+        activeChallenges: participations
+          .filter((p: any) => p.status === ParticipantStatus.ACTIVE)
+          .map((p: any) => ({
+            id: p.challenge.id,
+            name: p.challenge.title, 
+            taxaInscricao: p.challenge.taxaInscricao,
+        })),
+        pendingApprovals: participations
+          .filter((p: any) => p.status === ParticipantStatus.WAITING_APPROVAL)
+          .map((p: any) => ({
+            id: p.challenge.id,
+            name: p.challenge.title,
+            taxaInscricao: p.challenge.taxaInscricao,
+            requestedAt: p.joinedAt,
         })),
       }
     };

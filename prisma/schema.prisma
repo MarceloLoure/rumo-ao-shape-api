@@ -36,6 +36,8 @@ model User {
   invoices          Invoice[]
 
   creditCards UserCreditCard[]
+  reportedCheckIns CheckInReport[] @relation("ReporterRelation")
+  resolvedReports  CheckInReport[] @relation("ResolverRelation")
 
   @@index([firebaseUid])
   @@index([fcmToken])
@@ -147,6 +149,7 @@ model CheckIn {
   distance    Float?        // Quilometragem percorrida (Ex: 5.25)
   calories    Int?          // Calorias estimadas queimadas (Ex: 350)
   steps       Int?          // Contador de passos (Ex: 7500)
+  reports          CheckInReport[]
 
   @@map("checkins")
 }
@@ -264,4 +267,36 @@ model UserCreditCard {
 
   @@index([userId])
   @@map("user_credit_cards")
+}
+
+// Enum para controlar o ciclo de vida da denúncia
+enum ReportStatus {
+  PENDING      // Denúncia criada, aguardando avaliação do criador do desafio
+  APPROVED     // Criador aceitou a denúncia (o check-in denunciado é invalidado)
+  REJECTED     // Criador rejeitou a denúncia (o check-in continua válido)
+}
+
+model CheckInReport {
+  id             String       @id @default(uuid())
+  checkInId      String
+  checkIn        CheckIn      @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+  
+  // Quem está denunciando (o fiscal do shape)
+  reporterId     String
+  reporter       User         @relation("ReporterRelation", fields: [reporterId], references: [id])
+  
+  reason         String       // Motivo da denúncia (ex: "Foto repetida", "Não é treino")
+  description    String?      // Detalhes adicionais que o usuário queira escrever
+  
+  status         ReportStatus @default(PENDING)
+  
+  // Quem analisou a denúncia (normalmente o creatorId do Challenge)
+  resolvedById   String?
+  resolvedBy     User?        @relation("ResolverRelation", fields: [resolvedById], references: [id])
+  
+  resolvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([checkInId, reporterId]) // Evita que o mesmo usuário denuncie o mesmo treino várias vezes
+  @@map("check_in_reports")
 }

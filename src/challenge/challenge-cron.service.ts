@@ -181,6 +181,65 @@ export class ChallengeCronService {
     );
   }
 
+  // 🕒 Roda a cada 15 minutos para manter o banco limpo e liberar os usuários do Plano FREE
+  @Cron('*/15 * * * *')
+  async handleExpiredInvoicesCleanup() {
+    this.logger.log('🧹 [Cron Limpeza] Verificando faturas Pix pendentes com mais de 30 minutos...');
+
+    const limiteTolerancia = new Date(Date.now() - 30 * 60 * 1000); // 30 minutos atrás
+
+    // Busca todas as faturas de entrada que passaram de 30 minutos sem confirmação
+    const faturasExpiradas = await this.prisma.invoice.findMany({
+      where: {
+        status: 'PENDING',
+        type: 'CHALLENGE_ENTRY',
+        createdAt: { lte: limiteTolerancia }
+      }
+    });
+
+    if (faturasExpiradas.length === 0) return;
+
+    this.logger.log(`🧹 [Cron Limpeza] Encontradas ${faturasExpiradas.length} faturas para cancelar.`);
+
+    for (const invoice of faturasExpiradas) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // 1. Atualiza o status da fatura para cancelado localmente
+          await tx.invoice.update({
+            where: { id: invoice.id },
+            data: { status: 'REFUNDED' } // Ou um status 'CANCELED' se tiver no seu enum
+          });
+
+          // 2. Libera a vaga deletando o participante temporário
+          if (invoice.challengeId) {
+            await tx.participant.deleteMany({
+              where: {
+                challengeId: invoice.challengeId,
+                userId: invoice.userId,
+                status: 'PENDING_PAYMENT'
+              }
+            });
+          }
+
+          // 3. Cancela a cobrança de verdade lá dentro do Asaas para o usuário não conseguir pagar depois
+          await this.asaasService.deletePayment(invoice.gatewayInvoiceId);
+
+          await tx.auditLog.create({
+            data: {
+              userId: invoice.userId,
+              action: 'INVOICE_EXPIRED_30M',
+              description: `Fatura de entrada ${invoice.id} cancelada automaticamente por expirar o prazo limite de 30 minutos.`
+            }
+          });
+        });
+
+        this.logger.log(`✅ Fatura ${invoice.id} e participação temporária canceladas com sucesso.`);
+      } catch (err: any) {
+        this.logger.error(`❌ Falha ao expirar fatura ${invoice.id}: ${err.message}`);
+      }
+    }
+  }
+
   // Processa um único participante: conta check-ins da semana e aplica a punição (status e/ou multa) se necessário.
   // Lança exceção em caso de erro para que o chamador (com retry) possa decidir o que fazer — nunca engole o erro aqui.
   private async processarParticipante(

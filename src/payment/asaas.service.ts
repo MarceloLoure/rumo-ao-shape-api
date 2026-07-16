@@ -187,4 +187,34 @@ export class AsaasService {
       );
     }
   }
+
+  /**
+   * 🗑️ Cancela uma cobrança pendente diretamente no painel do Asaas
+   * @param asaasPaymentId ID da cobrança gerada no Asaas (ex: pay_123456789)
+   */
+  async deletePayment(asaasPaymentId: string): Promise<any> {
+    try {
+      this.logger.log(`🗑️ Solicitando cancelamento da cobrança ${asaasPaymentId} no Asaas...`);
+
+      // 🌟 SOLUÇÃO: Usa o client instanciado que já tem a baseURL e o token nos headers!
+      const response = await this.client.delete(`/payments/${asaasPaymentId}`);
+
+      this.logger.log(`✅ Cobrança ${asaasPaymentId} cancelada com sucesso no Asaas.`);
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.errors?.[0]?.description || error.message;
+      this.logger.error(`❌ Erro ao deletar cobrança ${asaasPaymentId} no Asaas: ${errorMessage}`);
+      
+      // Se a cobrança já estiver cancelada de alguma forma lá dentro, não travamos o fluxo do Cron de limpeza
+      if (
+        errorMessage.includes('não encontrada') || 
+        errorMessage.includes('já foi removida') || 
+        errorMessage.includes('inválida')
+      ) {
+        return { deleted: true, alreadyGone: true };
+      }
+
+      throw new BadRequestException(`Erro no gateway Asaas ao cancelar fatura: ${errorMessage}`);
+    }
+  }
 }

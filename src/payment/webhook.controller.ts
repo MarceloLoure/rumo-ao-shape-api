@@ -97,7 +97,7 @@ export class WebhookController {
               await tx.challengeTreasury.upsert({
                 where: { challengeId: invoice.challengeId },
                 update: { collectedFines: { increment: multaLiquida } },
-                create: { challengeId: invoice.challengeId, totalEscrowed: 0, collectedFines: multaLiquida },
+                create: { challengeId: invoice.challengeId, collectedFines: multaLiquida },
               });
             }
             break;

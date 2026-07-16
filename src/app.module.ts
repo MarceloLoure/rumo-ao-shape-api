@@ -12,9 +12,10 @@ import { PaymentModule } from './payment/payment.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { StorageModule } from './storage/storage.module';
+import { CheckInReportModule } from './check-in-report/check-in-report.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(),AuthModule, PrismaModule, StorageModule, ChallengeModule, UserModule, CheckinModule, SubscriptionModule, PaymentModule],
+  imports: [ScheduleModule.forRoot(),AuthModule, PrismaModule, StorageModule, ChallengeModule, UserModule, CheckinModule, SubscriptionModule, PaymentModule, CheckInReportModule],
   controllers: [AppController],
   providers: [
     {

@@ -3,6 +3,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCheckInDto } from './dto/create-checkin.dto';
 import { FirebaseStorageService } from '../storage/firebase-storage.service';
+import { CheckInStatus } from '@prisma/client';
 
 @Injectable()
 export class CheckInService {
@@ -80,10 +81,10 @@ export class CheckInService {
     let message = 'Treino pago com sucesso! Computado na meta da semana! 🏁';
 
     if (jaTemValidHoje) {
-      statusFinal = 'BONUS';
+      statusFinal = CheckInStatus.BONUS;
       message = 'Mais um pra conta, monstro! Postado como treino bônus no feed (Você já treinou hoje). 🏋️‍♂️';
     } else if (totalValidosNaSemana >= limitePermitidoDoDesafio) {
-      statusFinal = 'BONUS';
+      statusFinal = CheckInStatus.BONUS;
       message = `Meta semanal batida (${totalValidosNaSemana}/${limitePermitidoDoDesafio})! Postado como treino bônus no feed. Segue o plano! 🔥`;
     }
 

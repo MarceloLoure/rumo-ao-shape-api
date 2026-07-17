@@ -181,6 +181,8 @@ enum CheckInStatus {
   VALID
   SUSPICIOUS
   INVALID
+  BONUS
+  TESTE
 }
 
 // 6. Logs de Segurança e Auditoria (Sua Blindagem Jurídica)

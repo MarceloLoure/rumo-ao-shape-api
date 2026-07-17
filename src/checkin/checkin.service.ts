@@ -28,6 +28,19 @@ export class CheckInService {
       throw new BadRequestException('Usuário não está ativo ou inscrito neste desafio.');
     }
 
+    const desafioStatus = participant.challenge.status;
+
+    if (desafioStatus === 'PENDING') {
+      throw new BadRequestException('Segura a ansiedade, monstro! Este desafio ainda não começou.');
+    }
+
+    if (desafioStatus === 'FINISHED') {
+      throw new BadRequestException('O jogo acabou! Este desafio já foi finalizado e não aceita novos treinos.');
+    }
+    
+    if (desafioStatus !== 'ACTIVE') {
+       throw new BadRequestException('Não é permitido enviar check-ins para este desafio no momento.');
+    }
 
     const hojeInicio = new Date();
     hojeInicio.setHours(0, 0, 0, 0);

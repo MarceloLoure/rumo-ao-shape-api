@@ -547,8 +547,8 @@ export class ChallengeService {
       throw new BadRequestException('Desafio não encontrado.');
     }
 
-    if (challenge.status !== 'PENDING') {
-      throw new BadRequestException('Você só pode entrar em desafios que ainda não começaram e estão abertos.');
+    if (challenge.status === 'FINISHED') {
+      throw new BadRequestException('O jogo acabou! Este desafio já foi encerrado e não aceita novos participantes.');
     }
 
     // 2. Usando a Transação ACID para travar e criar as ordens

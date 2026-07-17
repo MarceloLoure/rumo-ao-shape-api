@@ -1,0 +1,45 @@
+@baseUrl = http://localhost:3000
+@token_do_fiscal = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZDI2OThlZi1hNTVhLTQ3OWYtODY3Zi03ZDJkZTFlNzlkMTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiUFJFTUlVTSIsImlkIjoiN2QyNjk4ZWYtYTU1YS00NzlmLTg2N2YtN2QyZGUxZTc5ZDE3IiwibmFtZSI6Ik1hcmNlbG8gTG91cmVuw6dvIEFsdGVyYWRvIiwiaWF0IjoxNzg0MjI1NjkxLCJleHAiOjE3ODQ4MzA0OTF9.y2_CYoJEbD7ALCeTYB6e_VPVNeR5Xx-5-h0z6DExD8c
+@token_do_admin = SEU_TOKEN_JWT_DO_CRIADOR_DO_DESAFIO
+
+@checkInId = f30a8088-5a1c-4e27-a44d-4d6347817e1d
+@challengeId = id_do_desafio_correspondente
+@reportId = id_da_denuncia_gerada_no_passo_1
+
+### -----------------------------------------------------------------
+### 🚀 PASSO 1: Criar uma denúncia de Check-In (Visão do Fiscal)
+### -----------------------------------------------------------------
+# Regra: O fiscal precisa estar ativo no mesmo desafio e o check-in não pode ser dele mesmo.
+POST {{baseUrl}}/check-in-reports/{{checkInId}}/report
+Authorization: Bearer {{token_do_fiscal}}
+Content-Type: application/json
+
+{
+  "reason": "FOTO_REPETIDA",
+  "description": "Este monstro usou a mesma foto do treino de peito de ontem. A garrafa de água no fundo e o ângulo são idênticos!"
+}
+
+
+### -----------------------------------------------------------------
+### 🔍 PASSO 2: Listar denúncias pendentes do Desafio (Visão do Admin)
+### -----------------------------------------------------------------
+# Regra: Apenas o criador do desafio correspondente consegue listar as pendências.
+GET {{baseUrl}}/check-in-reports/challenge/{{challengeId}}/pending
+Authorization: Bearer {{token_do_admin}}
+
+
+### -----------------------------------------------------------------
+### 🎯 PASSO 3: Julgar a Denúncia - OPÇÃO A: ACEITAR (Invalidar Treino)
+### -----------------------------------------------------------------
+# Regra: Se o admin aceitar, o status do CheckIn muda para INVALID no banco de dados.
+# No fechamento da semana, esse treino não será computado para a meta.
+PATCH {{baseUrl}}/check-in-reports/{{reportId}}/decision?action=APPROVE
+Authorization: Bearer {{token_do_admin}}
+
+
+### -----------------------------------------------------------------
+### ❌ PASSO 3: Julgar a Denúncia - OPÇÃO B: REJEITAR (Manter Treino Ativo)
+### -----------------------------------------------------------------
+# Regra: Se o admin rejeitar, a denúncia é arquivada e o treino do participante continua válido.
+PATCH {{baseUrl}}/check-in-reports/{{reportId}}/decision?action=REJECT
+Authorization: Bearer {{token_do_admin}}

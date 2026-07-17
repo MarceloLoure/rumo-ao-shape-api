@@ -1,6 +1,8 @@
 ### Configuração de Variáveis Locais
 @baseUrl = http://localhost:3000
 
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZDQ5N2MxNC02NGRjLTQyNGItOThjNS0yNmJlMjAwOGM1YTciLCJlbWFpbCI6InBhbmd6aW5uMkBnbWFpbC5jb20iLCJwbGFuIjoiRlJFRSIsImlkIjoiZGQ0OTdjMTQtNjRkYy00MjRiLTk4YzUtMjZiZTIwMDhjNWE3IiwibmFtZSI6Ik1hcmNlbG8gTG91cmVuw6dvIiwiaWF0IjoxNzg0MzA2NDc4LCJleHAiOjE3ODQ5MTEyNzh9.3vX0Y_tz2DGKaMOBxrHy92mBDwVVxTC20bXNqC2BaMg
+
 ### 1. Cadastrar Plano Premium Mensal Padrão
 POST {{baseUrl}}/subscriptions/plans
 Content-Type: application/json

@@ -101,7 +101,7 @@ export class CheckInService {
         longitude: Number(dto.longitude),
         deviceUuid: dto.deviceUuid,
         source: 'APP',
-        status: statusFinal as any,
+        status: statusFinal === 'BONUS' ? undefined : (statusFinal as any),
         title: dto.title || null,
         description: dto.description || null,
         activity: dto.activity || null,

@@ -1,9 +1,10 @@
-import { Controller, Post, Patch, Delete, Get, Body, Param, UseInterceptors, UploadedFile, UseGuards, BadRequestException, Query } from '@nestjs/common';
+import { Controller, Post, Patch, Delete, Get, Body, Param, UseInterceptors, UploadedFile, UseGuards, BadRequestException, Query, Request } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ChallengeService } from './challenge.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
-import { ApiTags, ApiConsumes, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { InvoiceStatus } from '@prisma/client';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
 import { JoinByCodeDto } from './dto/join-by-code.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -141,5 +142,24 @@ export class ChallengeController {
     @Query() query: GetPendingApprovalsQueryDto,
   ) {
     return this.challengeService.getChallengeApprovals(challengeId, admin.id, query);
+  }
+
+  @Get(':challengeId/invoices')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar faturas de um desafio direto do banco local (Apenas Criador)' })
+  @ApiParam({ name: 'challengeId', type: 'string', description: 'ID do desafio' })
+  @ApiQuery({ 
+    name: 'status', 
+    enum: InvoiceStatus, // 🌟 Swagger vai mostrar um dropdown lindo com: PENDING, CONFIRMED, OVERDUE, etc.
+    required: false, 
+    description: 'Filtrar por status da fatura' 
+  })
+  async getChallengeInvoices(
+    @Param('challengeId') challengeId: string,
+    @CurrentUser() user: any,
+    @Query('status') status?: InvoiceStatus,
+  ) {
+    return this.challengeService.getChallengeInvoices(challengeId, user.id, status);
   }
 }

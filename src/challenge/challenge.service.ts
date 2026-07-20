@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, NotFoundException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
@@ -7,6 +7,7 @@ import { AsaasService } from 'src/payment/asaas.service';
 import * as crypto from 'crypto';
 import { ParticipantStatus } from '@prisma/client';
 import { ApprovalFilterStatus, GetPendingApprovalsQueryDto } from './dto/GetPendingApprovalsQueryDto.dto';
+import { InvoiceStatus } from '@prisma/client';
 
 @Injectable()
 export class ChallengeService {
@@ -1007,6 +1008,61 @@ export class ChallengeService {
         joinedAt: p.joinedAt,
         status: p.status, // ACTIVE ou WAITING_APPROVAL
       })),
+    };
+  }
+
+  async getChallengeInvoices(challengeId: string, adminId: string, status?: InvoiceStatus) {
+    // 1. Validação de segurança: o desafio existe e pertence ao admin requisitante?
+    const challenge = await this.prisma.challenge.findUnique({
+      where: { id: challengeId },
+    });
+
+    if (!challenge) {
+      throw new NotFoundException('Desafio não encontrado.');
+    }
+
+    if (challenge.creatorId !== adminId) {
+      throw new ForbiddenException('Você não tem permissão para visualizar as faturas deste desafio.');
+    }
+
+    // 2. Busca direto da tabela local 'invoices' trazendo os dados do usuário associado
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        challengeId,
+        ...(status && { status }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // 3. Agrega valores locais para montar o resumo estatístico do painel do Admin
+    const resumo = invoices.reduce(
+      (acc, inv) => {
+        const valor = Number(inv.value) || 0;
+        if (inv.status === 'CONFIRMED') {
+          acc.totalPago += valor;
+        } else if (inv.status === 'PENDING') {
+          acc.totalPendente += valor;
+        }
+        return acc;
+      },
+      { totalPago: 0, totalPendente: 0, totalFaturas: invoices.length }
+    );
+
+    return {
+      resumo,
+      invoices,
     };
   }
 }
